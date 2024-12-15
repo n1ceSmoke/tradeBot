@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "profit_config")
 public class ProfitConfig {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

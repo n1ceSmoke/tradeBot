@@ -13,6 +13,8 @@ import com.n1ce.trade.bot.repositories.TradeRepository;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -62,10 +64,11 @@ public class OrderService extends AbstractService<Order>{
 		// Создаем ордер
 		Order order = new Order();
 		order.setBot(bot);
-		order.setQuantity(bot.getDeposit() / currentPrice);
-		order.setPrice(orderPrice);
+		order.setQuantity(new BigDecimal(bot.getDeposit() / currentPrice).setScale(4, RoundingMode.DOWN).doubleValue());
+		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
 		order.setStatus(OrderStatus.PENDING);
 		order.setCreatedAt(LocalDateTime.now());
+		order.setType(orderType);
 
 		try {
 			NewOrderResponse response = binanceApiService.createOrder(

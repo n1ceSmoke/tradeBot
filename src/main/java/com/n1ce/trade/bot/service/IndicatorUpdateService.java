@@ -95,6 +95,8 @@ public class IndicatorUpdateService {
 		marketCondition.setPrice(currentPrice);
 		marketCondition.setCreatedAt(LocalDateTime.now());
 		marketConditionRepository.save(marketCondition);
+		bot.setMarketCondition(marketCondition);
+		botRepository.save(bot);
 
 		log.info("MarketCondition обновлен для бота {}: LongTermRSI={}, ShortTermRSI={}, Price={}",
 				bot.getId(), longTermRSI, shortTermRSI, currentPrice);

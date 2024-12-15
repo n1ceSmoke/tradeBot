@@ -46,7 +46,7 @@ public class TradeService extends AbstractService<Trade> {
 			trade = createNewTrade(bot);
 		}
 
-		List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
+		List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);//TODO search by bot, trade and status
 		if (orders.isEmpty()) {
 			Strategy strategy = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360);
 			orderService.createOrder(bot, strategy);
@@ -65,12 +65,13 @@ public class TradeService extends AbstractService<Trade> {
 
 		if(trade.getStatus().equals(TradeStatus.PENDING)) {
 			double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
-			if (currentPrice <= trade.getBuyPrice() || shouldAdjustBuyOrder(bot, trade)) {
+			if (currentPrice <= trade.getBuyPrice() || shouldAdjustBuyOrder(bot, order)) {
 				if (binanceApiService.cancelOrder(order.getId(), order.getSymbol())) {
+					order.setStatus(OrderStatus.CANCELLED);
+					orderService.save(order);
 					Strategy strategy = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360);
 					Order newOrder = orderService.createOrder(bot, strategy);
 					trade.setBuyPrice(newOrder.getPrice());
-					trade.setUpdatedAt(LocalDateTime.now());
 					tradeRepository.save(trade);
 				}
 			}
@@ -81,7 +82,6 @@ public class TradeService extends AbstractService<Trade> {
 		Trade trade = new Trade();
 		trade.setBot(bot);
 		trade.setStatus(TradeStatus.PENDING);
-		trade.setOrderType(StrategyType.of(bot.getStrategy().getName()));
 		trade.setCreatedAt(LocalDateTime.now());
 		return tradeRepository.save(trade);
 	}
@@ -108,9 +108,9 @@ public class TradeService extends AbstractService<Trade> {
 		tradeRepository.save(trade);
 	}
 
-	private boolean shouldAdjustBuyOrder(Bot bot, Trade trade) {
+	private boolean shouldAdjustBuyOrder(Bot bot, Order order) {
 		// Логика для подтяжки цены, если еще не выполнен первый ордер
-		LocalDateTime adjustmentDeadline = trade.getCreatedAt().plusMinutes(bot.getDeadlineMinutes());
-		return LocalDateTime.now().isBefore(adjustmentDeadline);
+		LocalDateTime adjustmentDeadline = order.getCreatedAt().plusMinutes(bot.getDeadlineMinutes());
+		return adjustmentDeadline.isBefore(LocalDateTime.now());
 	}
 }

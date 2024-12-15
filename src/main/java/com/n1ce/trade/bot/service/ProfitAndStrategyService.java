@@ -64,14 +64,14 @@ public class ProfitAndStrategyService {
 		double diffFromZero = Math.abs(rsi - 0);
 		double diffFromHundred = Math.abs(100 - rsi);
 		if (diffFromZero <= 30 || diffFromHundred <= 30) {
-			return bot.getProfitConfig().getHighProfitThreshold();
+			return bot.getProfitConfig().getProfitPercentage() + 1;
 		}
 
 		double marketTrend = calculateMarketTrend(marketConditions);
 		if (marketTrend > 1 || marketTrend < -1) {
-			return bot.getProfitConfig().getHighProfitThreshold();
+			return bot.getProfitConfig().getProfitPercentage() + 1;
 		}
-		return bot.getProfitConfig().getLowProfitThreshold();
+		return bot.getProfitConfig().getProfitPercentage();
 	}
 
 	/**
