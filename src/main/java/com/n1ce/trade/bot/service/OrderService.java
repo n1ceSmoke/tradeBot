@@ -13,6 +13,8 @@ import com.n1ce.trade.bot.repositories.TradeRepository;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,15 +42,15 @@ public class OrderService extends AbstractService<Order>{
 		return repository.findByBotIdAndStatus(bot.getId(), status);
 	}
 
-	public Order createOrder(Bot bot, Strategy strategy) {
+	public Order createOrder(Bot bot, Strategy strategy, Boolean isSecondOrder) {
 		if(strategy.getName().equals(Strategy.LONG)) {
-			return createOrder(bot, OrderType.BUY);
+			return createOrder(bot, OrderType.BUY, isSecondOrder);
 		}
-		return createOrder(bot, OrderType.SELL);
+		return createOrder(bot, OrderType.SELL, isSecondOrder);
 	}
 
-	public Order createOrder(Bot bot, OrderType orderType) {
-		double profit = profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot);
+	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder) {
+		double profit = isSecondOrder ? bot.getProfitConfig().getProfitPercentage() : profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot);
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
 		double orderPrice;
 
@@ -62,10 +64,11 @@ public class OrderService extends AbstractService<Order>{
 		// Создаем ордер
 		Order order = new Order();
 		order.setBot(bot);
-		order.setQuantity(bot.getDeposit() / currentPrice);
-		order.setPrice(orderPrice);
+		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
+		order.setQuantity(binanceApiService.adjustOrderQuantity(bot.getDeposit() / currentPrice, bot.getMarketPair(), order.getPrice()));
 		order.setStatus(OrderStatus.PENDING);
 		order.setCreatedAt(LocalDateTime.now());
+		order.setType(orderType);
 
 		try {
 			NewOrderResponse response = binanceApiService.createOrder(
@@ -82,8 +85,11 @@ public class OrderService extends AbstractService<Order>{
 			repository.save(order);
 			return order;
 		} catch (Exception e) {
-			log.info("Ошибка создания ордера на Binance: " + e.getMessage(), e);
-			throw new RuntimeException("Ошибка создания ордера на Binance: " + e.getMessage());
+			log.info("Error creating order on Binance: " + e.getMessage(), e);
+			if(!e.getMessage().contains("Account has insufficient balance for requested action.")) {
+				throw new RuntimeException("Error creating order on Binance: " + e.getMessage());
+			}
+			return null;
 		}
 	}
 

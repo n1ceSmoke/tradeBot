@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: tradebot-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - DB_URL=${DB_URL}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_SECRET_KEY=${BINANCE_SECRET_KEY}
+    networks:
+      - tradebot-network
+
+  db:
+    image: postgres:17
+    container_name: tradebot_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: tradebot
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - tradebot-network
+
+  adminer:
+    image: adminer
+    container_name: tradebot-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+    networks:
+      - tradebot-network
+
+volumes:
+  postgres-data:
+
+networks:
+  tradebot-network:
+    driver: bridge

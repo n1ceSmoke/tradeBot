@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "trade_history")
 public class TradeHistory {
 	public static final String DESCRIPTION_TEMPLATE = "Trade completed: buy order price %s, sell order price %s";
 	@Id
@@ -26,6 +27,9 @@ public class TradeHistory {
 
 	@Column(columnDefinition = "TEXT")
 	private String details;
+
+	@Column
+	private Integer label;
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt = LocalDateTime.now();
