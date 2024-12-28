@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "market_condition")
 public class MarketCondition {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,4 +27,15 @@ public class MarketCondition {
 
 	@Column(nullable = false)
 	private Double price;
+
+	@Column
+	private Double volume; // Новый параметр для объёма торгов
+
+	@Column
+	private Double high; // Высокая цена свечи
+
+	@Column
+	private Double low; // Низкая цена свечи
+	@Column
+	private String symbol; // Низкая цена свечи
 }

@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "rsi_indicator")
 public class RSIIndicator {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

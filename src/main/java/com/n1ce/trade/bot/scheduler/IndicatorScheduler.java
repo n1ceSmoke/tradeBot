@@ -1,4 +1,4 @@
-package com.n1ce.trade.bot.config;
+package com.n1ce.trade.bot.scheduler;
 
 import com.n1ce.trade.bot.service.IndicatorUpdateService;
 import lombok.RequiredArgsConstructor;
@@ -15,12 +15,12 @@ public class IndicatorScheduler {
 
 	@Scheduled(fixedRateString = "${scheduler.update-interval}", initialDelay = 10000)
 	public void updateIndicators() {
-		log.info("Запуск обновления индикаторов...");
+		log.info("Starting indicator update...");
 		try {
 			indicatorUpdateService.updateIndicators();
-			log.info("Обновление индикаторов завершено успешно.");
+			log.info("Indicator update completed successfully.");
 		} catch (Exception e) {
-			log.error("Ошибка при обновлении индикаторов: {}", e.getMessage());
+			log.error("Error updating indicators: {}", e.getMessage());
 		}
 	}
 }

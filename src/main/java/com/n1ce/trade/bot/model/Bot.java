@@ -3,6 +3,7 @@ package com.n1ce.trade.bot.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Bot {
+public class Bot implements Serializable {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -47,4 +48,8 @@ public class Bot {
 
 	@Column(nullable = false)
 	private LocalDateTime updatedAt = LocalDateTime.now();
+
+	public Bot(Long id) {
+		this.id = id;
+	}
 }

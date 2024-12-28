@@ -16,24 +16,18 @@ public class Trade {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
 	@ManyToOne
 	@JoinColumn(name = "bot_id")
 	private Bot bot;
-
 	@Enumerated(EnumType.STRING)
 	private TradeStatus status; // CREATED, HALF_COMPLETED, COMPLETED
-
 	private double buyPrice;
 	private double sellPrice;
-
-	@Enumerated(EnumType.STRING)
-	private StrategyType orderType; // LONG or SHORT
-
 	private LocalDateTime createdAt = LocalDateTime.now();
-	private LocalDateTime updatedAt;
-
-
 	private LocalDateTime completedAt;
+
+	public Trade(Long id) {
+		this.id = id;
+	}
 }
 
