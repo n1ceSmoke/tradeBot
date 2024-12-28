@@ -54,14 +54,12 @@ public class OrderService extends AbstractService<Order>{
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
 		double orderPrice;
 
-		// Рассчитываем цену ордера
 		if (orderType.equals(OrderType.BUY)) {
 			orderPrice = currentPrice * (1 - profit / 100);
 		} else {
 			orderPrice = currentPrice * (1 + profit / 100);
 		}
 
-		// Создаем ордер
 		Order order = new Order();
 		order.setBot(bot);
 		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());

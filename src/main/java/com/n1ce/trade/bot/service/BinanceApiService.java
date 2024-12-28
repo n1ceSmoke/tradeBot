@@ -23,8 +23,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -67,14 +67,12 @@ public class BinanceApiService {
 
 	public NewOrderResponse createOrder(String symbol, OrderSide side, String quantity, double price) {
 		try {
-			NewOrder order = new NewOrder(symbol, side, OrderType.LIMIT, TimeInForce.GTC, quantity);
+			NewOrder order = new NewOrder(symbol, side, OrderType.LIMIT, TimeInForce.GTC, String.format(Locale.US, "%.8f", Double.parseDouble(quantity)));
 			order.recvWindow(5000L);
 			order.price(new BigDecimal(price).setScale(2, RoundingMode.DOWN).toPlainString());
 			order.timestamp(getServerTime());
-			// Создаем ордер через Binance API
 			NewOrderResponse orderResponse = binanceApiRestClient.newOrder(order);
 
-			// Логируем успешное создание ордера
 			log.info("Order successfully created: " + orderResponse);
 
 			return orderResponse;
@@ -90,10 +88,8 @@ public class BinanceApiService {
 			OrderStatusRequest request = new OrderStatusRequest(symbol, orderId);
 			request.recvWindow(5000L);
 			request.timestamp(getServerTime());
-			// Получаем информацию об ордере с Binance
 			Order order = binanceApiRestClient.getOrderStatus(request);
 
-			// Проверяем статус ордера
 			return "FILLED".equalsIgnoreCase(order.getStatus().name());
 		} catch (BinanceApiException e) {
 			log.info("Error checking the status of the order: " + e.getMessage(), e);
@@ -109,19 +105,15 @@ public class BinanceApiService {
 			binanceApiRestClient.cancelOrder(request);
 			return true;
 		} catch (BinanceApiException e) {
-			// Логируем ошибку и возвращаем false
 			log.info("Error cancelling the order: " + e.getMessage());
 			return false;
 		}
 	}
 
 	public List<Double> getPriceHistory(String symbol, int timePeriodMinutes) {
-		// Определяем интервал свечей
 		CandlestickInterval interval = determineInterval(timePeriodMinutes);
-		// Запрашиваем данные свечей (Candlestick)
 		List<Candlestick> candlesticks = binanceApiRestClient.getCandlestickBars(symbol, interval, 300, null, null);
 
-		// Извлекаем данные цен закрытия из свечей
 		return candlesticks.stream()
 				.map(Candlestick::getClose)
 				.map(Double::parseDouble)
@@ -129,7 +121,6 @@ public class BinanceApiService {
 	}
 
 	public List<Candlestick> getCandlestickData(String symbol, CandlestickInterval interval) {
-		// Запрашиваем данные свечей (Candlestick)
 		return binanceApiRestClient.getCandlestickBars(symbol, interval, 1, null, null);
 	}
 
@@ -169,9 +160,11 @@ public class BinanceApiService {
 
 	public double adjustOrderQuantity(double quantity, double stepSize, double minQty) {
 		double adjustedQuantity = Math.floor(quantity / stepSize) * stepSize;
+
 		if (adjustedQuantity < minQty) {
 			adjustedQuantity = minQty;
 		}
+		adjustedQuantity = Math.round(adjustedQuantity * 1e8) / 1e8;
 
 		return adjustedQuantity;
 	}
@@ -184,7 +177,7 @@ public class BinanceApiService {
 		if (timePeriodMinutes <= 3) {
 			return CandlestickInterval.THREE_MINUTES;
 		} else if (timePeriodMinutes <= 360) {
-			return CandlestickInterval.SIX_HOURLY; // Добавлено для 360 минут
+			return CandlestickInterval.SIX_HOURLY;
 		} else {
 			throw new IllegalArgumentException("The time period is too large for analysis: " + timePeriodMinutes + " minutes");
 		}
