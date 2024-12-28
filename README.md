@@ -1,5 +1,11 @@
 # Project: Trade Bot
 
+![License](https://img.shields.io/github/license/n1ceSmoke/tradeBot)
+![Java](https://img.shields.io/badge/Java-17-blue)
+![GitHub Stars](https://img.shields.io/github/stars/n1ceSmoke/tradeBot)
+![GitHub Forks](https://img.shields.io/github/forks/n1ceSmoke/tradeBot)
+![GitHub Issues](https://img.shields.io/github/issues/n1ceSmoke/tradeBot)
+
 ## Overview
 
 The **Trade Bot** is a robust application designed for cryptocurrency trading, utilizing technical indicators and strategies to automate trading on Binance. The bot is designed to manage multiple trading pairs, perform market analysis, and execute trades based on predefined strategies.
