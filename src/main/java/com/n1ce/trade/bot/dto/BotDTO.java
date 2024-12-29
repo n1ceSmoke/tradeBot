@@ -5,6 +5,7 @@ public class BotDTO implements AbstractDTO {
 	private String name;
 	private String marketPair;
 	private Boolean isRunning;
+	private Boolean isReinvest;
 	private Double deposit;
 	private Integer deadlineMinutes;
 	private Long strategyID;
@@ -72,5 +73,13 @@ public class BotDTO implements AbstractDTO {
 
 	public void setProfitConfigID(Long profitConfigID) {
 		this.profitConfigID = profitConfigID;
+	}
+
+	public Boolean getReinvest() {
+		return isReinvest;
+	}
+
+	public void setReinvest(Boolean reinvest) {
+		isReinvest = reinvest;
 	}
 }

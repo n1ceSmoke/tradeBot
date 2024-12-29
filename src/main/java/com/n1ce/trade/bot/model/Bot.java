@@ -26,6 +26,9 @@ public class Bot implements Serializable {
 	private Boolean isRunning;
 
 	@Column(nullable = false, length = 50)
+	private Boolean isReinvest;
+
+	@Column(nullable = false, length = 50)
 	private Double deposit;
 
 	@Column(nullable = false, length = 50)

@@ -65,11 +65,30 @@ public class BinanceApiService {
 		}
 	}
 
-	public NewOrderResponse createOrder(String symbol, OrderSide side, String quantity, double price) {
+	public NewOrderResponse createOrder(String symbol, OrderSide side, String quantity, String price) {
 		try {
 			NewOrder order = new NewOrder(symbol, side, OrderType.LIMIT, TimeInForce.GTC, String.format(Locale.US, "%.8f", Double.parseDouble(quantity)));
 			order.recvWindow(5000L);
-			order.price(new BigDecimal(price).setScale(2, RoundingMode.DOWN).toPlainString());
+			order.price(price);
+			order.timestamp(getServerTime());
+			NewOrderResponse orderResponse = binanceApiRestClient.newOrder(order);
+
+			log.info("Order successfully created: " + orderResponse);
+
+			return orderResponse;
+
+		} catch (BinanceApiException e) {
+			log.error("Failed to create order: " + e.getMessage());
+			throw new RuntimeException("Failed to create order: " + e.getMessage());
+		}
+	}
+
+	public NewOrderResponse createStopLossOrder(String symbol, OrderSide side, String quantity, String price, String stopLoss) {
+		try {
+			NewOrder order = new NewOrder(symbol, side, OrderType.STOP_LOSS_LIMIT, TimeInForce.GTC, String.format(Locale.US, "%.8f", Double.parseDouble(quantity)));
+			order.recvWindow(5000L);
+			order.stopPrice(stopLoss);
+			order.price(price);
 			order.timestamp(getServerTime());
 			NewOrderResponse orderResponse = binanceApiRestClient.newOrder(order);
 

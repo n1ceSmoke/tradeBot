@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 @Table(name = "trade_history")
 public class TradeHistory {
-	public static final String DESCRIPTION_TEMPLATE = "Trade completed: buy order price %s, sell order price %s";
+	public static final String DESCRIPTION_TEMPLATE = "Trade completed: buy order price %s, sell order price %s, profit %s";
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;

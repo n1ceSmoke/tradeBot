@@ -132,25 +132,26 @@ public class TradeService extends AbstractService<Trade> {
 		trade.setStatus(TradeStatus.COMPLETED);
 
 		double profit = (trade.getSellPrice() - trade.getBuyPrice()) * order.getQuantity();
-		double toReinvest = profit / 2;
-		bot.setDeposit(bot.getDeposit() + toReinvest);
+		if(bot.getIsReinvest()) {
+			double toReinvest = profit / 2;
+			bot.setDeposit(bot.getDeposit() + toReinvest);
+			botService.save(bot);
+		}
 
 		TradeHistory tradeHistory = new TradeHistory();
 		tradeHistory.setTrade(trade);
 		tradeHistory.setBot(bot);
-		tradeHistory.setDetails(String.format(DESCRIPTION_TEMPLATE, trade.getBuyPrice(), trade.getSellPrice()));
+		tradeHistory.setDetails(String.format(DESCRIPTION_TEMPLATE, trade.getBuyPrice(), trade.getSellPrice(), profit));
 		tradeHistory.setCreatedAt(LocalDateTime.now());
 		tradeHistory.setLabel(profit > 0 ? 1 : 0);
 
 		tradeHistoryRepository.save(tradeHistory);
 		orderService.save(order);
 		tradeRepository.save(trade);
-		botService.save(bot);
 		log.info("Trade completed. Profit {} USDT", profit);
 	}
 
 	private boolean shouldAdjustBuyOrder(Bot bot, Order order) {
-		// Логика для подтяжки цены, если еще не выполнен первый ордер
 		LocalDateTime adjustmentDeadline = order.getCreatedAt().plusMinutes(bot.getDeadlineMinutes());
 		return adjustmentDeadline.isBefore(LocalDateTime.now());
 	}

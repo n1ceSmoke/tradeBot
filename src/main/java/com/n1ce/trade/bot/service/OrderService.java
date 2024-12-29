@@ -52,13 +52,7 @@ public class OrderService extends AbstractService<Order>{
 	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder) {
 		double profit = isSecondOrder ? bot.getProfitConfig().getProfitPercentage() : profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot);
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
-		double orderPrice;
-
-		if (orderType.equals(OrderType.BUY)) {
-			orderPrice = currentPrice * (1 - profit / 100);
-		} else {
-			orderPrice = currentPrice * (1 + profit / 100);
-		}
+		double orderPrice = calculateAmount(orderType, currentPrice, profit);
 
 		Order order = new Order();
 		order.setBot(bot);
@@ -67,15 +61,8 @@ public class OrderService extends AbstractService<Order>{
 		order.setStatus(OrderStatus.PENDING);
 		order.setCreatedAt(LocalDateTime.now());
 		order.setType(orderType);
-
 		try {
-			NewOrderResponse response = binanceApiService.createOrder(
-					bot.getMarketPair(),
-					orderType.equals(OrderType.SELL) ? OrderSide.SELL : OrderSide.BUY,
-					String.valueOf(order.getQuantity()),
-					orderPrice
-			);
-
+			NewOrderResponse response = createOrder(bot, order, orderType, isSecondOrder, currentPrice, orderPrice);
 			order.setId(response.getOrderId());
 			order.setSymbol(response.getSymbol());
 			order.setTrade(tradeRepository.findByStatusAndBot(TradeStatus.PENDING, bot));
@@ -91,5 +78,37 @@ public class OrderService extends AbstractService<Order>{
 		}
 	}
 
+	private NewOrderResponse createOrder(Bot bot, Order order, OrderType orderType, Boolean isSecondOrder, double currentPrice, double orderPrice) {
+//		if(isSecondOrder) {
+//			double stopLoss = calculateAmount(orderType, currentPrice, bot.getProfitConfig().getLowProfitThreshold());
+//			return binanceApiService.createStopLossOrder(
+//					bot.getMarketPair(), defineSide(orderType), String.valueOf(order.getQuantity()), scaleToTwo(orderPrice), scaleToTwo(stopLoss)
+//			);
+//		} else {
+//			return binanceApiService.createOrder(
+//					bot.getMarketPair(), defineSide(orderType), String.valueOf(order.getQuantity()), scaleToTwo(orderPrice)
+//			);
+//		}
+
+		return binanceApiService.createOrder(
+				bot.getMarketPair(), defineSide(orderType), String.valueOf(order.getQuantity()), scaleToTwo(orderPrice)
+		);
+	}
+
+	private double calculateAmount(OrderType orderType, double currentPrice, double profit) {
+		if (orderType.equals(OrderType.BUY)) {
+			return currentPrice * (1 - profit / 100);
+		} else {
+			return currentPrice * (1 + profit / 100);
+		}
+	}
+
+	private OrderSide defineSide(OrderType orderType) {
+		return orderType.equals(OrderType.SELL) ? OrderSide.SELL : OrderSide.BUY;
+	}
+
+	private String scaleToTwo(double value) {
+		return new BigDecimal(value).setScale(2, RoundingMode.DOWN).toPlainString();
+	}
 }
 
