@@ -50,7 +50,7 @@ public class OrderService extends AbstractService<Order>{
 	}
 
 	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder) {
-		double profit = isSecondOrder ? bot.getProfitConfig().getProfitPercentage() : profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot);
+		double profit = isSecondOrder ? profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot) : 0.01;
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
 		double orderPrice = calculateAmount(orderType, currentPrice, profit);
 
