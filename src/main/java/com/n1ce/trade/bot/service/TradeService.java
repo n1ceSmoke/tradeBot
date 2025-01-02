@@ -46,20 +46,34 @@ public class TradeService extends AbstractService<Trade> {
 	public void executeTradeLogic(Bot bot) {
 		Trade trade = findActiveOrCreateNewTrade(bot);
 
-		List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
-		if (orders.isEmpty()) {
-			createFirstOrderInTrade(bot);
-			return;
+		Strategy tradeStrategy;
+		if(trade.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(60)) || trade.getStrategy() == null) {
+			tradeStrategy = profitAndStrategyService.longTermMarketAnalyzeForStrategy(60, bot);
+			if(tradeStrategy != null) {
+				trade.setStrategy(tradeStrategy);
+				trade.setCreatedAt(LocalDateTime.now());
+				tradeRepository.save(trade);
+			}
+		} else {
+			tradeStrategy =  trade.getStrategy();
 		}
 
-		Order order = orders.get(0);
-		if (binanceApiService.isOrderFilled(order.getId(), order.getSymbol())) {
-			executeOrderFilledActions(bot, trade, order);
-			return;
-		}
+		if(tradeStrategy != null) {
+			List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
+			if (orders.isEmpty()) {
+				orderService.checkForMarketSignalForOrder(bot, trade);
+				return;
+			}
 
-		if (trade.getStatus().equals(TradeStatus.PENDING)) {
-			executeTrailingStop(bot, trade, order);
+			Order order = orders.get(0);
+			if (binanceApiService.isOrderFilled(order.getId(), order.getSymbol())) {
+				executeOrderFilledActions(bot, trade, order);
+				return;
+			}
+
+			if (trade.getStatus().equals(TradeStatus.PENDING)) {
+				executeTrailingStop(bot, trade, order);
+			}
 		}
 	}
 
@@ -80,14 +94,7 @@ public class TradeService extends AbstractService<Trade> {
 		trade.setBot(bot);
 		trade.setStatus(TradeStatus.PENDING);
 		trade.setCreatedAt(LocalDateTime.now());
-		return tradeRepository.save(trade);
-	}
-
-	private void createFirstOrderInTrade(Bot bot) {
-		Strategy strategy = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360, bot);
-		if (strategy != null) {
-			orderService.createOrder(bot, strategy, false);
-		}
+		return trade;
 	}
 
 	private void executeOrderFilledActions(Bot bot, Trade trade, Order order) {
@@ -114,13 +121,14 @@ public class TradeService extends AbstractService<Trade> {
 
 	private void executeTrailingStop(Bot bot, Trade trade, Order order) {
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
-		if (currentPrice <= trade.getBuyPrice() || shouldAdjustBuyOrder(bot, order)) {
-			if (binanceApiService.cancelOrder(order.getId(), order.getSymbol())) {
-				order.setStatus(OrderStatus.CANCELLED);
-				orderService.save(order);
-				Strategy strategy = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360, bot);
-				if (strategy != null) {
-					orderService.createOrder(bot, strategy, false);
+		Strategy tradeStrategy = trade.getStrategy();
+		Strategy orderStrategy = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(1, bot);
+		if (tradeStrategy != null && orderStrategy != null) {
+			if (currentPrice <= trade.getBuyPrice() || shouldAdjustBuyOrder(bot, order)) {
+				if (binanceApiService.cancelOrder(order.getId(), order.getSymbol())) {
+					order.setStatus(OrderStatus.CANCELLED);
+					orderService.save(order);
+					orderService.checkForMarketSignalForOrder(bot, trade);
 				}
 			}
 		}

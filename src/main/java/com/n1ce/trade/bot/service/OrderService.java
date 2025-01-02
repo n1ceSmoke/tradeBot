@@ -8,6 +8,7 @@ import com.n1ce.trade.bot.enums.TradeStatus;
 import com.n1ce.trade.bot.model.Bot;
 import com.n1ce.trade.bot.model.Order;
 import com.n1ce.trade.bot.model.Strategy;
+import com.n1ce.trade.bot.model.Trade;
 import com.n1ce.trade.bot.repositories.OrderRepository;
 import com.n1ce.trade.bot.repositories.TradeRepository;
 import lombok.extern.log4j.Log4j2;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Log4j2
@@ -42,6 +44,15 @@ public class OrderService extends AbstractService<Order>{
 		return repository.findByBotIdAndStatus(bot.getId(), status);
 	}
 
+	public Optional<Order> checkForMarketSignalForOrder(Bot bot, Trade trade) {
+		Strategy strategy = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(3, bot);
+		if(null != strategy && strategy.getName().equals(trade.getStrategy().getName())) {
+			return Optional.of(createOrder(bot, strategy, false));
+		}
+		log.info("No clear signal for order strategy. Pair " + bot.getMarketPair());
+		return Optional.empty();
+	}
+
 	public Order createOrder(Bot bot, Strategy strategy, Boolean isSecondOrder) {
 		if(strategy.getName().equals(Strategy.LONG)) {
 			return createOrder(bot, OrderType.BUY, isSecondOrder);
@@ -50,7 +61,7 @@ public class OrderService extends AbstractService<Order>{
 	}
 
 	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder) {
-		double profit = isSecondOrder ? bot.getProfitConfig().getProfitPercentage() : profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot);
+		double profit = isSecondOrder ? profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot) : 0.01;
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
 		double orderPrice = calculateAmount(orderType, currentPrice, profit);
 
