@@ -170,6 +170,13 @@ The bot automatically reinvests profits:
 - **MIN\_NOTIONAL Errors:** Validates minimum trade value.
 - **Retry Logic:** Retries API calls on transient errors.
 
+### 🔹 Configurable Trade Settings
+To enhance flexibility in trade execution, the bot now supports configurable trade parameters. Each bot instance can be adjusted to match different market conditions.
+
+### 📌 How It Works
+Take-Profit Percentage: When a trade reaches this percentage gain, it executes a sell order.
+Pullback Threshold: If a trade almost hits take-profit but then starts dropping, the bot closes the trade early to secure profit.
+Trade Expiration: Any trade exceeding max_trade_hours will be automatically closed, ensuring that trades don’t remain open indefinitely.
 ---
 
 # Economic aspects

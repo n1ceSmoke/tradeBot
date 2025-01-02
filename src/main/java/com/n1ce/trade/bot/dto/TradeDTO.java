@@ -8,6 +8,7 @@ public class TradeDTO implements AbstractDTO {
 	private TradeStatus status;
 	private double buyPrice;
 	private double sellPrice;
+	private double highestPrice;
 
 	public Long getId() {
 		return id;
@@ -47,5 +48,13 @@ public class TradeDTO implements AbstractDTO {
 
 	public void setSellPrice(double sellPrice) {
 		this.sellPrice = sellPrice;
+	}
+
+	public double getHighestPrice() {
+		return highestPrice;
+	}
+
+	public void setHighestPrice(double highestPrice) {
+		this.highestPrice = highestPrice;
 	}
 }

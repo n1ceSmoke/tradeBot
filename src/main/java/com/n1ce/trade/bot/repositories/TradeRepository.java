@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
-	List<Trade> findByBot_Id(Long botId);
+	public List<Trade> findByBot_Id(Long botId);
 	List<Trade> findByStatus(TradeStatus status);
 
 	boolean existsByBotAndStatus(Bot bot, TradeStatus status);

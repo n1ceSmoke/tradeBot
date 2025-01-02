@@ -46,6 +46,16 @@ public class Bot implements Serializable {
 	@JoinColumn(name = "market_condition_id", nullable = false)
 	private MarketCondition marketCondition;
 
+	@Column
+	private double takeProfitCheckValue;
+
+	@Column
+	private double pullbackThreshold;
+
+	@Column
+	private int maxTradeHours;
+
+
 	@Column(nullable = false)
 	private LocalDateTime createdAt = LocalDateTime.now();
 
