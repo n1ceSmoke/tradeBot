@@ -48,7 +48,7 @@ public class TradeService extends AbstractService<Trade> {
 
 		List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
 		if (orders.isEmpty()) {
-			createFirstOrderInTrade(bot, trade);
+			createFirstOrderInTrade(bot);
 			return;
 		}
 
@@ -80,13 +80,12 @@ public class TradeService extends AbstractService<Trade> {
 		trade.setBot(bot);
 		trade.setStatus(TradeStatus.PENDING);
 		trade.setCreatedAt(LocalDateTime.now());
-		trade.setStrategy(profitAndStrategyService.longTermMarketAnalyzeForStrategy(360, bot));
 		return tradeRepository.save(trade);
 	}
 
-	private void createFirstOrderInTrade(Bot bot, Trade trade) {
-		Strategy strategy = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(3, bot);
-		if (trade.getStrategy().getName().equals(strategy.getName())) {
+	private void createFirstOrderInTrade(Bot bot) {
+		Strategy strategy = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360, bot);
+		if (strategy != null) {
 			orderService.createOrder(bot, strategy, false);
 		}
 	}

@@ -1,5 +1,6 @@
 package com.n1ce.trade.bot.model;
 
+import com.n1ce.trade.bot.enums.StrategyType;
 import com.n1ce.trade.bot.enums.TradeStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,9 +19,6 @@ public class Trade {
 	@ManyToOne
 	@JoinColumn(name = "bot_id")
 	private Bot bot;
-	@OneToOne
-	@JoinColumn(name = "strategy_id")
-	private Strategy strategy;
 	@Enumerated(EnumType.STRING)
 	private TradeStatus status; // CREATED, HALF_COMPLETED, COMPLETED
 	private double buyPrice;

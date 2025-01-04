@@ -62,32 +62,7 @@ public class ProfitAndStrategyService {
 		return null;
 	}
 
-	public Strategy shortTermMarketAnalyzeForStrategy(int periodMinutes, Bot bot) {
-		LocalDateTime startTime = LocalDateTime.now().minusMinutes(periodMinutes);
-		List<MarketCondition> marketConditions = marketConditionRepository.findAllByCreatedAtAfterAndSymbol(startTime, bot.getMarketPair());
 
-		if (marketConditions.isEmpty()) {
-			log.info("No market conditions available for long-term analysis.");
-			return null;
-		}
-
-		double shortTermRSI = calculateShortTermRsi(marketConditions);
-		double atr = calculateATR(marketConditions, 14);
-		boolean sufficientVolume = isVolumeSufficient(marketConditions, 1.2);
-
-		double score = 0;
-		score += (shortTermRSI > 70 ? -1 : (shortTermRSI < 30 ? 1 : 0)) * 0.5;
-		score += (atr > 1.0 ? 0.3 : -0.3);
-		score += (sufficientVolume ? 0.2 : -0.2);
-		if (score > 0) {
-			return strategyRepository.findByName(Strategy.LONG);
-		} else if (score < 0) {
-			return strategyRepository.findByName(Strategy.SHORT);
-		}
-
-		log.info("No clear signal for long-term strategy. Defaulting to null.");
-		return null;
-	}
 
 	public double shortTermMarketAnalyzeForProfit(int periodMinutes, Bot bot) {
 		LocalDateTime startTime = LocalDateTime.now().minusMinutes(periodMinutes);
@@ -97,6 +72,7 @@ public class ProfitAndStrategyService {
 			log.info("No market conditions available for short-term analysis.");
 			return bot.getProfitConfig().getLowProfitThreshold();
 		}
+
 		double shortTermRSI = calculateShortTermRsi(marketConditions);
 		double atr = calculateATR(marketConditions, 14);
 		boolean sufficientVolume = isVolumeSufficient(marketConditions, 1.2);
@@ -114,6 +90,8 @@ public class ProfitAndStrategyService {
 		log.info("Low profit threshold applied for bot: {}", bot.getId());
 		return bot.getProfitConfig().getLowProfitThreshold();
 	}
+
+
 
 	/**
 	 * Рассчитывает общий тренд рынка на основе изменений цен.
@@ -153,7 +131,7 @@ public class ProfitAndStrategyService {
 
 	private double calculateATR(List<MarketCondition> marketConditions, int period) {
 		if (marketConditions.size() < period) {
-			return 0;
+			return 0; // Недостаточно данных
 		}
 
 		double atr = 0.0;
@@ -171,7 +149,7 @@ public class ProfitAndStrategyService {
 	private double calculateEMA(List<MarketCondition> marketConditions, int period) {
 		marketConditions.sort(Comparator.comparing(MarketCondition::getCreatedAt));
 		double multiplier = 2.0 / (period + 1);
-		double ema = marketConditions.get(0).getPrice();
+		double ema = marketConditions.get(0).getPrice(); // Начальная точка EMA
 
 		for (int i = 1; i < marketConditions.size(); i++) {
 			double price = marketConditions.get(i).getPrice();
