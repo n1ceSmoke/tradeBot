@@ -5,7 +5,7 @@ FROM openjdk:19-jdk-slim
 WORKDIR /app
 
 # Копируем JAR-файл в контейнер
-COPY target/tradebot-0.0.1.jar app.jar
+COPY target/tradebot-1.1.1.jar app.jar
 
 # Указываем порт, который будет слушать приложение
 EXPOSE 8080

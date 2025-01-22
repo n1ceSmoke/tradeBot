@@ -128,7 +128,6 @@ public class BinanceApiService {
 			return false;
 		}
 	}
-
 	public List<Double> getPriceHistory(String symbol, int timePeriodMinutes) {
 		CandlestickInterval interval = determineInterval(timePeriodMinutes);
 		List<Candlestick> candlesticks = binanceApiRestClient.getCandlestickBars(symbol, interval, 300, null, null);

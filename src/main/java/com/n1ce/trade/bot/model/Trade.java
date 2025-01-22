@@ -19,10 +19,16 @@ public class Trade {
 	@ManyToOne
 	@JoinColumn(name = "bot_id")
 	private Bot bot;
+	@OneToOne
+	@JoinColumn(name = "strategy_id")
+	private Strategy tradinStrategy;
+	@Enumerated(EnumType.STRING)
+	private StrategyType tradingVector;
 	@Enumerated(EnumType.STRING)
 	private TradeStatus status; // CREATED, HALF_COMPLETED, COMPLETED
 	private double buyPrice;
 	private double sellPrice;
+	private Double highestPrice;
 	private LocalDateTime createdAt = LocalDateTime.now();
 	private LocalDateTime completedAt;
 

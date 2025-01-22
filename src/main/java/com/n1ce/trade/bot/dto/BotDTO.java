@@ -1,5 +1,6 @@
 package com.n1ce.trade.bot.dto;
 
+
 public class BotDTO implements AbstractDTO {
 	private Long id;
 	private String name;
@@ -10,6 +11,9 @@ public class BotDTO implements AbstractDTO {
 	private Integer deadlineMinutes;
 	private Long strategyID;
 	private Long profitConfigID;
+	private Double takeProfitCheckValue;
+	private Double pullbackThreshold;
+	private Integer maxTradeHours;
 
 	public Long getId() {
 		return id;
@@ -81,5 +85,29 @@ public class BotDTO implements AbstractDTO {
 
 	public void setReinvest(Boolean reinvest) {
 		isReinvest = reinvest;
+	}
+
+	public Double getTakeProfitCheckValue() {
+		return takeProfitCheckValue;
+	}
+
+	public void setTakeProfitCheckValue(Double takeProfitCheckValue) {
+		this.takeProfitCheckValue = takeProfitCheckValue;
+	}
+
+	public Double getPullbackThreshold() {
+		return pullbackThreshold;
+	}
+
+	public void setPullbackThreshold(Double pullbackThreshold) {
+		this.pullbackThreshold = pullbackThreshold;
+	}
+
+	public Integer getMaxTradeHours() {
+		return maxTradeHours;
+	}
+
+	public void setMaxTradeHours(Integer maxTradeHours) {
+		this.maxTradeHours = maxTradeHours;
 	}
 }

@@ -16,15 +16,9 @@ public class ProfitConfig {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(nullable = false)
-	private Double profitPercentage;
+	private Double highProfit;
 
-	@Column(nullable = false)
-	private Double orderOffset;
-
-	private Double highProfitThreshold;
-
-	private Double lowProfitThreshold;
+	private Double lowProfit;
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt = LocalDateTime.now();
