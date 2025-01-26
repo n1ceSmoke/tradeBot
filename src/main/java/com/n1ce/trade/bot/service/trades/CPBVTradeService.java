@@ -67,7 +67,7 @@ public class CPBVTradeService extends AbstractCurrentPriceTradeStrategy {
 		}
 		List<Order> pendingOrders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
 
-		if (pendingOrders.isEmpty()) {
+		if (pendingOrders.isEmpty() && trade.getStatus().equals(TradeStatus.PENDING)) {
 			log.info("Creating first order in trade...");
 			placeBuyOrder(bot, trade);
 			return;

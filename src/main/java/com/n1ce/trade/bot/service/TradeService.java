@@ -44,7 +44,7 @@ public abstract class TradeService extends AbstractService<Trade> {
 	public abstract void executeTradeLogic(Bot bot);
 
 	protected void createSecondOrderOnTrade(Bot bot, Trade trade, Order order) {
-		Order newOrder = orderService.createOrder(bot, OrderType.opposite(order.getType()), true);
+		Order newOrder = orderService.createOrder(bot, OrderType.opposite(order.getType()), true, trade);
 		if(null != newOrder) {
 			order.setStatus(OrderStatus.FILLED);
 			trade.setStatus(TradeStatus.SECOND_ORDER);
@@ -121,8 +121,7 @@ public abstract class TradeService extends AbstractService<Trade> {
 			binanceApiService.cancelOrder(order.getId(), order.getSymbol());
 			order.setStatus(OrderStatus.CANCELLED);
 			orderService.save(order);
-			orderService.createOrderWithPrice(bot, order.getType(), pullbackPrice);
-			completeTrade(order, trade, bot);
+			orderService.createOrderWithPrice(bot, order.getType(), pullbackPrice, trade);
 		}
 	}
 
@@ -135,8 +134,7 @@ public abstract class TradeService extends AbstractService<Trade> {
 			binanceApiService.cancelOrder(order.getId(), order.getSymbol());
 			order.setStatus(OrderStatus.CANCELLED);
 			orderService.save(order);
-			orderService.createOrderWithPrice(bot, order.getType(), currentPrice);
-			completeTrade(order, trade, bot);
+			orderService.createOrderWithPrice(bot, order.getType(), currentPrice, trade);
 		}
 	}
 }

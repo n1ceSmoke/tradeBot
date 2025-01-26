@@ -44,7 +44,7 @@ public class WGPTradeService extends TradeService {
 
 		if (orders.isEmpty()) {
 			log.info("Creating first order in trade...");
-			createFirstOrderInTrade(bot);
+			createFirstOrderInTrade(bot, trade);
 			return;
 		}
 		if (checkIsOrderFilled(orders, bot, trade)) {
@@ -79,10 +79,10 @@ public class WGPTradeService extends TradeService {
 		return tradeRepository.save(trade);
 	}
 
-	private void createFirstOrderInTrade(Bot bot) {
+	private void createFirstOrderInTrade(Bot bot, Trade trade) {
 		Signal signal = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360, bot);
 		if (signal != null) {
-			orderService.createOrder(bot, signal.getType(), false);
+			orderService.createOrder(bot, signal.getType(), false, trade);
 		}
 	}
 
@@ -95,7 +95,7 @@ public class WGPTradeService extends TradeService {
 				orderService.save(order);
 				Signal signal = profitAndStrategyService.longTermMarketAnalyzeForStrategy(360, bot);
 				if (signal != null) {
-					orderService.createOrder(bot, signal.getType(), false);
+					orderService.createOrder(bot, signal.getType(), false, trade);
 				}
 			}
 		}

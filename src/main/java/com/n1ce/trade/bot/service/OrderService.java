@@ -46,7 +46,7 @@ public class OrderService extends AbstractService<Order>{
 	}
 
 	public List<OrderDTO> getByBotID(Long id) {
-		List<Order> orders = repository.findByBotId(id);
+		List<Order> orders = repository.findByBotIdAndCreatedAtAfter(id, LocalDateTime.now().minusHours(24));
 		return orders.stream().sorted(Comparator.comparing(Order::getCreatedAt)).map(orderMapper::toDto).collect(Collectors.toList());
 	}
 
@@ -62,7 +62,7 @@ public class OrderService extends AbstractService<Order>{
 
 		Signal shortTermSignal = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(5, bot);
 		if(null != shortTermSignal && shortTermSignal.getStrength() < signalScore) {
-			createOrder(bot, trade.getTradingVector(), isSecondOrder);
+			createOrder(bot, trade.getTradingVector(), isSecondOrder, trade);
 		}
 	}
 
@@ -75,22 +75,22 @@ public class OrderService extends AbstractService<Order>{
 		Signal shortTermSignal = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(5, bot);
 		if(null != shortTermSignal) {
 			if (shortTermSignal.getType() == trade.getTradingVector()) {
-				createOrder(bot, shortTermSignal.getType(), false);
+				createOrder(bot, shortTermSignal.getType(), false, trade);
 			} else {
 				log.info("Short-term signal disagrees with long-term strategy. Skipping order creation.");
 			}
 		}
 	}
 
-	public void createOrder(Bot bot, StrategyType strategy, Boolean isSecondOrder) {
+	public void createOrder(Bot bot, StrategyType strategy, Boolean isSecondOrder, Trade trade) {
 		if(strategy.equals(StrategyType.LONG)) {
-			createOrder(bot, OrderType.BUY, isSecondOrder);
+			createOrder(bot, OrderType.BUY, isSecondOrder, trade);
 		} else {
-			createOrder(bot, OrderType.SELL, isSecondOrder);
+			createOrder(bot, OrderType.SELL, isSecondOrder, trade);
 		}
 	}
 
-	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder) {
+	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder, Trade trade) {
 		double profit = isSecondOrder ? profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot) : 0.01;
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
 		double orderPrice = calculateAmount(orderType, currentPrice, profit);
@@ -106,7 +106,7 @@ public class OrderService extends AbstractService<Order>{
 			NewOrderResponse response = createOrder(bot, order, orderType, orderPrice);
 			order.setId(response.getOrderId());
 			order.setSymbol(response.getSymbol());
-			order.setTrade(tradeRepository.findByStatusAndBot(TradeStatus.PENDING, bot));
+			order.setTrade(trade);
 
 			repository.save(order);
 			return order;
@@ -119,7 +119,7 @@ public class OrderService extends AbstractService<Order>{
 		}
 	}
 
-	public Order createOrderWithPrice(Bot bot, OrderType orderType, double orderPrice) {
+	public Order createOrderWithPrice(Bot bot, OrderType orderType, double orderPrice, Trade trade) {
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
 		Order order = new Order();
 		order.setBot(bot);
@@ -132,7 +132,7 @@ public class OrderService extends AbstractService<Order>{
 			NewOrderResponse response = createOrder(bot, order, orderType, orderPrice);
 			order.setId(response.getOrderId());
 			order.setSymbol(response.getSymbol());
-			order.setTrade(tradeRepository.findByStatusAndBot(TradeStatus.PENDING, bot));
+			order.setTrade(trade);
 
 			repository.save(order);
 			return order;

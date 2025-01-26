@@ -35,8 +35,8 @@ public abstract class AbstractCrudController<O, D extends AbstractDTO> {
 
 	@PutMapping("/{id}")
 	public ResponseEntity<D> update(@PathVariable Long id, @RequestBody D entity) {
-		service.findById(id);
-		return ResponseEntity.ok(mapper.toDto(service.save(mapper.toEntity(entity))));
+		service.update(id, entity);
+		return ResponseEntity.ok(mapper.toDto(service.findById(id)));
 	}
 
 	@DeleteMapping("/{id}")

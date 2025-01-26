@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,7 +45,7 @@ class TradeServiceImpl extends AbstractService<Trade> {
 	}
 
 	public List<TradeDTO> findByBotId(Long id) {
-		List<Trade> trades = ((TradeRepository) repository).findByBot_Id(id);
+		List<Trade> trades = ((TradeRepository) repository).findByBot_IdAndCreatedAtAfter(id, LocalDateTime.now().minusHours(24));
 		return trades.stream().map(tradeMapper::toDto).collect(Collectors.toList());
 	}
 }

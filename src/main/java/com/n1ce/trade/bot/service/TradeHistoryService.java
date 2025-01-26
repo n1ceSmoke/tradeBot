@@ -6,6 +6,7 @@ import com.n1ce.trade.bot.model.TradeHistory;
 import com.n1ce.trade.bot.repositories.TradeHistoryRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,7 +21,7 @@ public class TradeHistoryService extends AbstractService<TradeHistory> {
 	}
 
 	public List<TradeHistoryDTO> getTradeHistoryByBotId(Long botId) {
-		List<TradeHistory> trades = ((TradeHistoryRepository) repository).findByBot_Id(botId);
+		List<TradeHistory> trades = ((TradeHistoryRepository) repository).findByBot_IdAndCreatedAtAfter(botId, LocalDateTime.now().minusHours(24));
 		return trades.stream().map(tradeHistoryMapper::toDto).collect(Collectors.toList());
 	}
 }
