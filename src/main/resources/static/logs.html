@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Application logs</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #eef2f7;
+            color: #333;
+            padding: 20px;
+            margin: 0;
+        }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            background: #007bff;
+            padding: 10px;
+        }
+
+        nav button {
+            background: #007bff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.3s;
+            color: #fff;
+        }
+
+        nav button:hover {
+            background: #0056b3;
+        }
+
+        #logs-container {
+            margin-top: 20px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <button onclick="location.href='index.html'">Home</button>
+    <button onclick="location.href='stats.html'">Stats</button>
+    <button onclick="location.href='logs.html'">Logs</button>
+</nav>
+<nav>
+    <button id="download-btn">Download logs file</button>
+</nav>
+
+<div id="logs-container">
+    Загрузка логов...
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/logs/tail')
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Ошибка при получении логов');
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                document.getElementById('logs-container').textContent = data.join('\n');
+            })
+            .catch(function(error) {
+                document.getElementById('logs-container').textContent = 'Ошибка: ' + error;
+            });
+    });
+
+    document.getElementById('download-btn').addEventListener('click', function() {
+        window.location.href = '/api/logs/download';
+    });
+</script>
+</body>
+</html>

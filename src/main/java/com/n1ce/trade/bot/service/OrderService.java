@@ -60,7 +60,7 @@ public class OrderService extends AbstractService<Order>{
 			return;
 		}
 
-		Signal shortTermSignal = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(5, bot);
+		Signal shortTermSignal = profitAndStrategyService.analyzeMarket(bot);
 		if(null != shortTermSignal && shortTermSignal.getStrength() < signalScore) {
 			createOrder(bot, trade.getTradingVector(), isSecondOrder, trade);
 		}
@@ -72,7 +72,7 @@ public class OrderService extends AbstractService<Order>{
 			return;
 		}
 
-		Signal shortTermSignal = profitAndStrategyService.shortTermMarketAnalyzeForStrategy(5, bot);
+		Signal shortTermSignal = profitAndStrategyService.analyzeMarket(bot);
 		if(null != shortTermSignal) {
 			if (shortTermSignal.getType() == trade.getTradingVector()) {
 				createOrder(bot, shortTermSignal.getType(), false, trade);
@@ -82,73 +82,108 @@ public class OrderService extends AbstractService<Order>{
 		}
 	}
 
-	public void createOrder(Bot bot, StrategyType strategy, Boolean isSecondOrder, Trade trade) {
-		if(strategy.equals(StrategyType.LONG)) {
-			createOrder(bot, OrderType.BUY, isSecondOrder, trade);
+	public void checkForMarketSignalForMarketOrder(Bot bot, Trade trade) {
+		if (trade.getTradingVector() == null) {
+			log.info("No trading vector found for bot " + bot.getId() + ". Skipping order creation.");
+			return;
+		}
+
+		Signal shortTermSignal = profitAndStrategyService.analyzeMarket(bot);
+		if(null != shortTermSignal && shortTermSignal.getStrength() > 0.6) {
+			if (shortTermSignal.getType() == trade.getTradingVector()) {
+				createMarketOrder(bot, trade);
+			} else {
+				log.info("Short-term signal disagrees with long-term strategy. Skipping order creation.");
+			}
 		} else {
-			createOrder(bot, OrderType.SELL, isSecondOrder, trade);
+			log.info("Analyze Market signal is low or empty. Skipping order creation.");
 		}
 	}
 
-	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder, Trade trade) {
-		double profit = isSecondOrder ? profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot) : 0.01;
-		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
-		double orderPrice = calculateAmount(orderType, currentPrice, profit);
-
-		Order order = new Order();
-		order.setBot(bot);
-		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
-		order.setQuantity(binanceApiService.adjustOrderQuantity(bot.getDeposit() / currentPrice, bot.getMarketPair(), order.getPrice()));
-		order.setStatus(OrderStatus.PENDING);
-		order.setCreatedAt(LocalDateTime.now());
-		order.setType(orderType);
-		try {
-			NewOrderResponse response = createOrder(bot, order, orderType, orderPrice);
-			order.setId(response.getOrderId());
-			order.setSymbol(response.getSymbol());
-			order.setTrade(trade);
-
-			repository.save(order);
-			return order;
-		} catch (Exception e) {
-			log.info("Error creating order on Binance: " + e.getMessage(), e);
-			if (!e.getMessage().contains("Account has insufficient balance for requested action.")) {
-				throw new RuntimeException("Error creating order on Binance: " + e.getMessage());
-			}
-			return null;
+	public void createOrder(Bot bot, StrategyType strategy, Boolean isSecondOrder, Trade trade) {
+		if(strategy.equals(StrategyType.LONG)) {
+			createOrder(bot, OrderType.BUY, isSecondOrder, trade, null);
+		} else {
+			createOrder(bot, OrderType.SELL, isSecondOrder, trade, null);
 		}
+	}
+
+	public void createMarketOrder(Bot bot, Trade trade) {
+		binanceApiService.setLeverage(bot.getMarketPair(), bot.getLeverage());
+		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
+		double quantity = binanceApiService.adjustFuturesOrderQuantity((bot.getDeposit() * bot.getLeverage()) / currentPrice, bot.getMarketPair(), currentPrice);
+		double stopLoss = new BigDecimal(currentPrice * (1 - bot.getFuturesStopLoss() / 100)).setScale(2, RoundingMode.DOWN).doubleValue();
+		double takeProfit = new BigDecimal(currentPrice * (1 + bot.getFuturesTakeProfitValue() / 100)).setScale(2, RoundingMode.DOWN).doubleValue();
+
+
+		Order market = createAndFillOrder(bot, currentPrice, quantity, trade);
+		market.setId(binanceApiService.createFuturesOrder(bot.getMarketPair(), trade.getTradingVector().equals(StrategyType.LONG) ? OrderSide.BUY : OrderSide.SELL, quantity));
+		save(market);
+
+		Order SLOrder = createAndFillOrder(bot, stopLoss, quantity,trade);
+		SLOrder.setId(binanceApiService.createStopLossOrder(bot.getMarketPair(), trade.getTradingVector().equals(StrategyType.LONG) ? OrderSide.BUY : OrderSide.SELL, quantity, stopLoss));
+		save(SLOrder);
+
+		Order TPOrder = createAndFillOrder(bot, takeProfit, quantity,trade);
+		TPOrder.setId(binanceApiService.createTakeProfitOrder(bot.getMarketPair(), trade.getTradingVector().equals(StrategyType.LONG) ? OrderSide.BUY : OrderSide.SELL, quantity, takeProfit));
+		save(TPOrder);
+
+	}
+
+	public Order createOrder(Bot bot, OrderType orderType, Boolean isSecondOrder, Trade trade, Order firstOrder) {
+		double profit = isSecondOrder ? profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot) : 0.01;
+		double currentPrice = firstOrder != null ? firstOrder.getPrice() : binanceApiService.getCurrentPrice(bot.getMarketPair());
+		double orderPrice = calculateAmount(orderType, currentPrice, profit);
+		return createOrder(bot, currentPrice, orderPrice, orderType, trade);
 	}
 
 	public Order createOrderWithPrice(Bot bot, OrderType orderType, double orderPrice, Trade trade) {
 		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
-		Order order = new Order();
-		order.setBot(bot);
-		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
-		order.setQuantity(binanceApiService.adjustOrderQuantity(bot.getDeposit() / currentPrice, bot.getMarketPair(), order.getPrice()));
-		order.setStatus(OrderStatus.PENDING);
-		order.setCreatedAt(LocalDateTime.now());
-		order.setType(orderType);
-		try {
-			NewOrderResponse response = createOrder(bot, order, orderType, orderPrice);
-			order.setId(response.getOrderId());
-			order.setSymbol(response.getSymbol());
-			order.setTrade(trade);
-
-			repository.save(order);
-			return order;
-		} catch (Exception e) {
-			log.info("Error creating order on Binance: " + e.getMessage(), e);
-			if (!e.getMessage().contains("Account has insufficient balance for requested action.")) {
-				throw new RuntimeException("Error creating order on Binance: " + e.getMessage());
-			}
-			return null;
-		}
+		return createOrder(bot, currentPrice, orderPrice, orderType, trade);
 	}
 
 	public NewOrderResponse createOrder(Bot bot, Order order, OrderType orderType, double orderPrice) {
 		return binanceApiService.createOrder(
 				bot.getMarketPair(), defineSide(orderType), String.valueOf(order.getQuantity()), scaleToTwo(orderPrice)
 		);
+	}
+
+	private Order createOrder(Bot bot, double orderPrice, double currentPrice, OrderType orderType, Trade trade) {
+		Order order = new Order();
+		order.setBot(bot);
+		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
+		order.setQuantity(binanceApiService.adjustOrderQuantity(bot.getDeposit() / currentPrice, bot.getMarketPair(), order.getPrice()));
+		order.setStatus(OrderStatus.PENDING);
+		order.setCreatedAt(LocalDateTime.now());
+		order.setType(orderType);
+		try {
+			NewOrderResponse response = createOrder(bot, order, orderType, orderPrice);
+			order.setId(response.getOrderId());
+			order.setSymbol(response.getSymbol());
+			order.setTrade(trade);
+
+			repository.save(order);
+			return order;
+		} catch (Exception e) {
+			log.info("Error creating order on Binance: " + e.getMessage(), e);
+			if (!e.getMessage().contains("Account has insufficient balance for requested action.")) {
+				throw new RuntimeException("Error creating order on Binance: " + e.getMessage());
+			}
+			return null;
+		}
+	}
+
+	private Order createAndFillOrder(Bot bot, double price, double quantity, Trade trade) {
+		Order order = new Order();
+		order.setBot(bot);
+		order.setPrice(price);
+		order.setQuantity(quantity);
+		order.setStatus(OrderStatus.PENDING);
+		order.setCreatedAt(LocalDateTime.now());
+		order.setTrade(trade);
+		order.setSymbol(bot.getMarketPair());
+		order.setType(trade.getTradingVector().equals(StrategyType.LONG) ? OrderType.BUY : OrderType.SELL);
+		return order;
 	}
 
 	private double calculateAmount(OrderType orderType, double currentPrice, double profit) {

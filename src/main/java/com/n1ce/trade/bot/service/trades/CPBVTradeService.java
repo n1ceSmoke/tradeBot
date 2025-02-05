@@ -115,6 +115,6 @@ public class CPBVTradeService extends AbstractCurrentPriceTradeStrategy {
 
 	private void placeBuyOrder(Bot bot, Trade trade) {
 		log.info("Placing buy order for bot: {}", bot.getId());
-		orderService.placeOrderIsSignalAboveThan(0.5, bot, trade, false);
+		orderService.placeOrderIsSignalAboveThan(0.6, bot, trade, false);
 	}
 }

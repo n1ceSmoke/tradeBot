@@ -44,6 +44,9 @@ async function loadBots() {
             <td>${bot.deposit}</td>
             <td>${strategies.find(s => s.id === bot.strategyID)?.name || "Unknown"}</td>
             <td>${profitConfigs.find(p => p.id === bot.profitConfigID)?.highProfit || "Unknown"}</td>
+            <td>${bot.futuresTakeProfitValue}</td>
+            <td>${bot.futuresStopLoss}</td>
+            <td>${bot.leverage}</td>
             <td>${bot.running ? "✅ On" : "❌ Off"}</td>
             <td>
                 <button onclick="editBot(${bot.id})">✏️</button>
@@ -64,7 +67,10 @@ function editBot(botId) {
     const deposit = cells[3].textContent;
     const currentStrategy = strategies.find(s => s.name === cells[4].textContent)?.id || "";
     const currentProfitConfig = profitConfigs.find(p => p.highProfit == cells[5].textContent)?.id || "";
-    const running = cells[6].textContent.includes("✅");
+    const futuresTakeProfitValue = cells[6].textContent;
+    const futuresStopLoss = cells[7].textContent;
+    const leverage = cells[8].textContent;
+    const running = cells[9].textContent.includes("✅");
 
     row.innerHTML = `
         <td>${botId}</td>
@@ -81,6 +87,9 @@ function editBot(botId) {
                 ${profitConfigs.map(p => `<option value="${p.id}" ${p.id === currentProfitConfig ? "selected" : ""}>High: ${p.highProfit}, Low: ${p.lowProfit}</option>`).join("")}
             </select>
         </td>
+        <td><input type="number" value="${futuresTakeProfitValue}" id="editFuturesTakeProfit${botId}"></td>
+        <td><input type="number" value="${futuresStopLoss}" id="editFuturesStopLoss${botId}"></td>
+        <td><input type="number" value="${leverage}" id="editLeverage${botId}"></td>
         <td>
             <input type="checkbox" id="editRunning${botId}" ${running ? "checked" : ""}>
         </td>
@@ -96,9 +105,12 @@ async function saveBot(botId) {
     const deposit = parseFloat(document.getElementById(`editDeposit${botId}`).value);
     const strategyID = parseInt(document.getElementById(`editStrategy${botId}`).value);
     const profitConfigID = parseInt(document.getElementById(`editProfitConfig${botId}`).value);
+    const futuresTakeProfitValue = parseFloat(document.getElementById(`editFuturesTakeProfit${botId}`).value);
+    const futuresStopLoss = parseFloat(document.getElementById(`editFuturesStopLoss${botId}`).value);
+    const leverage = parseInt(document.getElementById(`editLeverage${botId}`).value);
     const running = document.getElementById(`editRunning${botId}`).checked;
 
-    const botData = { name, marketPair: market, deposit, strategyID, profitConfigID, running };
+    const botData = { name, marketPair: market, deposit, strategyID, profitConfigID, futuresTakeProfitValue, futuresStopLoss, leverage, running };
 
     try {
         const response = await fetch(`${apiUrl}/${botId}`, {

@@ -1,141 +1,133 @@
 <!DOCTYPE html>
 <html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trade bot stats</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-    <a href="index.html">Home</a>
-    <h2>Choose bot:</h2>
-    <select id="botSelect" onchange="loadBotData()">
-    </select>
-    
-    <h2>Chart for bot <span id="botName"></span></h2>
-    <canvas id="tradeChart"></canvas>
-    
-    <h3>Trades history:</h3>
-    <div id="tradeHistory"></div>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Trade bot stats</title>
+        <link rel="stylesheet" href="css/style.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+    <nav>
+        <button onclick="location.href='index.html'">Home</button>
+        <button onclick="location.href='stats.html'">Stats</button>
+        <button onclick="location.href='logs.html'">Logs</button>
+    </nav>
 
-    <script>
-        let botData = {};
-        let allBots = [];
+        <h2>Choose bot:</h2>
+        <select id="botSelect" onchange="loadBotData()"></select>
 
-        async function loadBotData() {
-			const botId = document.getElementById('botSelect').value;
-			if (!botId) return;
+        <h2>Chart for bot <span id="botName"></span></h2>
+        <canvas id="tradeChart"></canvas>
 
-			try {
-				const tradesResponse = await fetch(`http://localhost:8080/api/trades/by-bot/${botId}`);
-				const tradeHistoryResponse = await fetch(`http://localhost:8080/api/trade-history/by-bot/${botId}`);
-				const ordersResponse = await fetch(`http://localhost:8080/api/orders/by-bot/${botId}`);
+        <h3>Trades history:</h3>
+        <div id="tradeHistory"></div>
 
-				const tradesData = await tradesResponse.json();
-				const tradeHistoryData = await tradeHistoryResponse.json();
-				const ordersData = await ordersResponse.json();
+        <script>
+            let botData = {};
+            let allBots = [];
 
-				const bot = allBots.find(bot => bot.id === botId);
-				if (bot) {
-					document.getElementById('botName').innerText = bot.name;
-				} else {
-					console.error(`Bot with id ${botId} not found`);
-				}
+            async function loadBotData() {
+                const botId = document.getElementById('botSelect').value;
+                if (!botId) return;
 
-				botData[botId] = ordersData.map(item => ({
-					id: item.id,
-                    botId: botId,
-					price: item.price,
-                    symbol: item.symbol,
-                    quantity: item.quantity,
-                    type: item.type,
-                    status: item.status
-				}));
+                try {
+                    const tradesResponse = await fetch(`/api/trades/by-bot/${botId}`);
+                    const tradeHistoryResponse = await fetch(`/api/trade-history/by-bot/${botId}`);
+                    const ordersResponse = await fetch(`/api/orders/by-bot/${botId}`);
 
-				renderTradeGraph(botId);
-				renderTradeHistory(botId, tradeHistoryData);
-			} catch (error) {
-				console.error('Error during data load: ', error);
-			}
-		}
+                    const tradesData = await tradesResponse.json();
+                    const tradeHistoryData = await tradeHistoryResponse.json();
+                    const ordersData = await ordersResponse.json();
 
-        function renderTradeGraph(botId) {
-            const ctx = document.getElementById('tradeChart').getContext('2d');
+                    const bot = allBots.find(bot => bot.id === botId);
+                    if (bot) {
+                        document.getElementById('botName').innerText = bot.name;
+                    } else {
+                        console.error(`Bot with id ${botId} not found`);
+                    }
 
-            if (window.tradeChart && window.tradeChart instanceof Chart) {
-                window.tradeChart.destroy();
+                    botData[botId] = ordersData.map(item => ({
+                        id: item.id,
+                        botId: botId,
+                        price: item.price,
+                        symbol: item.symbol,
+                        quantity: item.quantity,
+                        type: item.type,
+                        status: item.status
+                    }));
+
+                    renderTradeGraph(botId);
+                    renderTradeHistory(botId, tradeHistoryData);
+                } catch (error) {
+                    console.error('Error during data load: ', error);
+                }
             }
 
-            const data = botData[botId];
+            function renderTradeGraph(botId) {
+                const ctx = document.getElementById('tradeChart').getContext('2d');
 
-            const symbols = data.map(item => item.symbol);
-            const prices = data.map(item => item.price);
-            const quantities = data.map(item => item.quantity);
-            const statuses = data.map(item => item.status);
-            const types = data.map(item => item.type);
-            const values = data
-                .filter((item, index) => statuses[index] === 'FILLED')
-                .map((item, index) => prices[index] * quantities[index]);
+                if (window.tradeChart && window.tradeChart instanceof Chart) {
+                    window.tradeChart.destroy();
+                }
 
-            const pointColors = types.map(type => type === 'BUY' ? 'green' : 'red');
+                const data = botData[botId];
+                if (!data) return;
 
-            if (values.some(value => value !== 0)) {
-                window.tradeChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: symbols,
-                        datasets: [
-                            {
-                                label: 'Order size in usdt',
+                const values = data.filter(item => item.status === 'FILLED')
+                    .map(item => item.price * item.quantity);
+
+                if (values.length > 0) {
+                    window.tradeChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.map(item => item.symbol),
+                            datasets: [{
+                                label: 'Order size in USDT',
                                 data: values,
                                 borderColor: 'gray',
-                                backgroundColor: pointColors,
                                 fill: false,
                                 pointRadius: 5,
                                 pointHoverRadius: 7,
                                 borderWidth: 2
-                            }
-                        ]
-                    }
-                });
+                            }]
+                        }
+                    });
+                }
             }
-        }
 
-        function renderTradeHistory(botId, historyData) {
-            const tradeHistoryDiv = document.getElementById('tradeHistory');
-            const history = historyData.map((item, index) => {
-                console.log(item)
-                return `<p>${index+1}: ${item.details}</p>`;
-            }).join('');
-            tradeHistoryDiv.innerHTML = history;
-        }
+            function renderTradeHistory(botId, historyData) {
+                const tradeHistoryDiv = document.getElementById('tradeHistory');
+                tradeHistoryDiv.innerHTML = historyData.map((item, index) =>
+                    `<p>${index + 1}: ${item.details}</p>`).join('');
+            }
 
-        function loadBots() {
-			fetch('http://localhost:8080/api/bots')
-				.then(response => response.json())
-				.then(bots => {
-					allBots = bots;
-					const botSelect = document.getElementById('botSelect');
-					botSelect.innerHTML = '<option value="">Choose bot:</option>';
+            function loadBots() {
+                fetch('/api/bots')
+                    .then(response => response.json())
+                    .then(bots => {
+                        allBots = bots;
+                        const botSelect = document.getElementById('botSelect');
+                        botSelect.innerHTML = '<option value="">Choose bot:</option>';
 
-					allBots.forEach(bot => {
-						const option = document.createElement('option');
-						option.value = bot.id;
-						option.textContent = bot.name;
-						botSelect.appendChild(option);
-					});
+                        allBots.forEach(bot => {
+                            const option = document.createElement('option');
+                            option.value = bot.id;
+                            option.textContent = bot.name;
+                            botSelect.appendChild(option);
+                        });
 
-					if (allBots.length > 0) {
-						botSelect.value = allBots[0].id;
-						loadBotData();
-					}
-				})
-				.catch(error => {
-					console.error('Error during loading bot data: ', error);
-				});
-		}
+                        if (allBots.length > 0) {
+                            botSelect.value = allBots[0].id;
+                            loadBotData();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error during loading bot data: ', error);
+                    });
+            }
 
-        loadBots();
-    </script>
-</body>
+            loadBots();
+        </script>
+    </body>
 </html>

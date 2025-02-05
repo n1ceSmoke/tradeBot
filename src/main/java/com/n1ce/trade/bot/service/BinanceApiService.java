@@ -16,16 +16,17 @@ import com.binance.api.client.domain.general.SymbolInfo;
 import com.binance.api.client.domain.market.Candlestick;
 import com.binance.api.client.domain.market.CandlestickInterval;
 import com.binance.api.client.exception.BinanceApiException;
+import com.binance.connector.futures.client.impl.UMFuturesClientImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Log4j2
@@ -35,11 +36,14 @@ public class BinanceApiService {
 
 	private final BinanceApiRestClient binanceApiRestClient;
 	private final RestTemplate restTemplate;
+	private final UMFuturesClientImpl futuresClient;
+	private final ObjectMapper objectMapper;
 
-
-	public BinanceApiService(BinanceApiRestClient binanceApiRestClient) {
+	public BinanceApiService(BinanceApiRestClient binanceApiRestClient, UMFuturesClientImpl futuresClient, ObjectMapper objectMapper) {
 		this.binanceApiRestClient = binanceApiRestClient;
+		this.futuresClient = futuresClient;
 		this.restTemplate = new RestTemplate();
+		this.objectMapper = objectMapper;
 	}
 
 	public double getCurrentPrice(String tradingPair) {
@@ -83,25 +87,6 @@ public class BinanceApiService {
 		}
 	}
 
-	public NewOrderResponse createStopLossOrder(String symbol, OrderSide side, String quantity, String price, String stopLoss) {
-		try {
-			NewOrder order = new NewOrder(symbol, side, OrderType.STOP_LOSS_LIMIT, TimeInForce.GTC, String.format(Locale.US, "%.8f", Double.parseDouble(quantity)));
-			order.recvWindow(5000L);
-			order.stopPrice(stopLoss);
-			order.price(price);
-			order.timestamp(getServerTime());
-			NewOrderResponse orderResponse = binanceApiRestClient.newOrder(order);
-
-			log.info("Order successfully created: " + orderResponse);
-
-			return orderResponse;
-
-		} catch (BinanceApiException e) {
-			log.error("Failed to create order: " + e.getMessage());
-			throw new RuntimeException("Failed to create order: " + e.getMessage());
-		}
-	}
-
 	public boolean isOrderFilled(Long orderId, String symbol) {
 		try {
 			OrderStatusRequest request = new OrderStatusRequest(symbol, orderId);
@@ -111,6 +96,26 @@ public class BinanceApiService {
 
 			return "FILLED".equalsIgnoreCase(order.getStatus().name());
 		} catch (BinanceApiException e) {
+			log.info("Error checking the status of the order: " + e.getMessage(), e);
+			return false;
+		}
+	}
+
+	public boolean isMarketOrderFilled(Long orderId, String symbol) {
+		try {
+			LinkedHashMap<String, Object> query = new LinkedHashMap<>();
+			query.put("symbol", symbol);
+			query.put("orderId", String.valueOf(orderId));
+
+			String response = futuresClient.account().queryOrder(query);
+			JsonNode order = objectMapper.readTree(response);
+			String status = order.get("status").asText();
+
+			return "FILLED".equalsIgnoreCase(status);
+		} catch (BinanceApiException e) {
+			log.info("Error checking the status of the order: " + e.getMessage(), e);
+			return false;
+		} catch (JsonProcessingException e) {
 			log.info("Error checking the status of the order: " + e.getMessage(), e);
 			return false;
 		}
@@ -140,6 +145,57 @@ public class BinanceApiService {
 
 	public List<Candlestick> getCandlestickData(String symbol, CandlestickInterval interval) {
 		return binanceApiRestClient.getCandlestickBars(symbol, interval, 1, null, null);
+	}
+
+	public List<Candlestick> getCandlestickDataWithLimit(String symbol, CandlestickInterval interval, int count) {
+		return binanceApiRestClient.getCandlestickBars(symbol, interval, count, null, null);
+	}
+
+	public double adjustFuturesOrderQuantity(double orderQuantity, String symbol, double price) {
+		Map<String, JsonNode> filterNodes = new HashMap<>();
+		try {
+			String response = futuresClient.market().exchangeInfo();
+			try {
+				JsonNode rootNode = objectMapper.readTree(response);
+				JsonNode symbolsArray = rootNode.path("symbols");
+				for (JsonNode symbolNode : symbolsArray) {
+					if (symbolNode.path("symbol").asText().equals(symbol)) {
+						JsonNode filters = symbolNode.path("filters");
+						for (JsonNode filter : filters) {
+							if (filter.path("filterType").asText().equals("LOT_SIZE") || filter.path("filterType").asText().equals("MIN_NOTIONAL")) {
+								filterNodes.put(filter.path("filterType").asText(), filter);
+							}
+						}
+					}
+				}
+			} catch (IOException e) {
+				log.error("Error parsing Binance Futures JSON: ", e);
+			}
+
+			if (filterNodes.isEmpty()) {
+				throw new IllegalArgumentException("Symbol information not found for: " + symbol);
+			}
+
+			JsonNode lotSizeFilter = filterNodes.get("LOT_SIZE");
+			JsonNode minNotionalFilter = filterNodes.get("MIN_NOTIONAL");
+
+			double stepSize = lotSizeFilter.get("stepSize").asDouble();
+			double minQty = lotSizeFilter.get("minQty").asDouble();
+			double adjustedQuantity = adjustOrderQuantity(orderQuantity, stepSize, minQty);
+
+			if(null != minNotionalFilter) {
+				double minNotional = minNotionalFilter.get("notional").asDouble();
+				if (!isOrderValueValid(adjustedQuantity, price, minNotional)) {
+					throw new IllegalArgumentException("Order value is less than the minimum notional allowed.");
+				}
+
+				log.info("Order Details - Symbol: {}, Quantity: {}, Step Size: {}, Min Qty: {}, Adjusted Quantity: {}, Min Notional: {}",
+						symbol, orderQuantity, stepSize, minQty, adjustedQuantity, minNotional);
+			}
+			return adjustedQuantity;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public double adjustOrderQuantity(double orderQuantity, String symbol, double price) {
@@ -190,6 +246,83 @@ public class BinanceApiService {
 	public boolean isOrderValueValid(double quantity, double price, double minNotional) {
 		return (quantity * price) >= minNotional;
 	}
+
+	public long createFuturesOrder(String symbol, OrderSide side, double quantity) {
+		try {
+			LinkedHashMap<String, Object> order = new LinkedHashMap<>();
+			order.put("symbol", symbol);
+			order.put("side", side.toString());
+			order.put("type", "MARKET");
+			order.put("quantity", String.valueOf(quantity));
+
+			String response = futuresClient.account().newOrder(order);
+			log.info("Futures order created: {}", response);
+			JsonNode jsonResponse = objectMapper.readTree(response);
+			return jsonResponse.get("orderId").asLong();
+		} catch (Exception e) {
+			log.error("Failed to create futures order for {}: {}", symbol, e.getMessage());
+			throw new RuntimeException("Failed to create futures order");
+		}
+	}
+
+	public void setLeverage(String symbol, int leverage) {
+		try {
+			LinkedHashMap<String, Object> leverageParams = new LinkedHashMap<>();
+			leverageParams.put("symbol", symbol);
+			leverageParams.put("leverage", leverage);
+			futuresClient.account().changeInitialLeverage(leverageParams);
+			log.info("Leverage set to {}x for {}", leverage, symbol);
+		} catch (Exception e) {
+			log.error("Failed to set leverage for {}: {}", symbol, e.getMessage());
+		}
+	}
+
+	public long createStopLossOrder(String symbol, OrderSide side, double quantity, double stopLossPrice) {
+		try {
+			OrderSide exitSide = (side == OrderSide.BUY) ? OrderSide.SELL : OrderSide.BUY;
+
+			LinkedHashMap<String, Object> orderParams = new LinkedHashMap<>();
+			orderParams.put("symbol", symbol);
+			orderParams.put("side", exitSide.toString());
+			orderParams.put("type", "STOP_MARKET");
+			orderParams.put("quantity", String.valueOf(quantity));
+			orderParams.put("stopPrice", String.valueOf(stopLossPrice));
+			orderParams.put("reduceOnly", true);
+
+			String response = futuresClient.account().newOrder(orderParams);
+			log.info("Stop Loss order created: {}", response);
+
+			JsonNode jsonResponse = objectMapper.readTree(response);
+			return jsonResponse.get("orderId").asLong();
+		} catch (Exception e) {
+			log.error("Failed to create stop loss order for {}: {}", symbol, e.getMessage());
+			throw new RuntimeException("Failed to create stop loss order");
+		}
+	}
+
+	public long createTakeProfitOrder(String symbol, OrderSide side, double quantity, double takeProfitPrice) {
+		try {
+			OrderSide exitSide = (side == OrderSide.BUY) ? OrderSide.SELL : OrderSide.BUY;
+
+			LinkedHashMap<String, Object> orderParams = new LinkedHashMap<>();
+			orderParams.put("symbol", symbol);
+			orderParams.put("side", exitSide.toString());
+			orderParams.put("type", "TAKE_PROFIT_MARKET");
+			orderParams.put("quantity", String.valueOf(quantity));
+			orderParams.put("stopPrice", String.valueOf(takeProfitPrice));
+			orderParams.put("reduceOnly", true);
+
+			String response = futuresClient.account().newOrder(orderParams);
+			log.info("Take Profit order created: {}", response);
+
+			JsonNode jsonResponse = objectMapper.readTree(response);
+			return jsonResponse.get("orderId").asLong();
+		} catch (Exception e) {
+			log.error("Failed to create take profit order for {}: {}", symbol, e.getMessage());
+			throw new RuntimeException("Failed to create take profit order");
+		}
+	}
+
 
 	private CandlestickInterval determineInterval(int timePeriodMinutes) {
 		if (timePeriodMinutes <= 3) {

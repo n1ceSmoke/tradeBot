@@ -55,6 +55,14 @@ public class Bot implements Serializable {
 	@Column
 	private int maxTradeHours;
 
+	@Column
+	private double futuresTakeProfitValue;
+
+	@Column
+	private double futuresStopLoss;
+
+	@Column
+	private int leverage;
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt = LocalDateTime.now();

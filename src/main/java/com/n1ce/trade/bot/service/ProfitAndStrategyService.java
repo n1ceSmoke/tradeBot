@@ -1,10 +1,9 @@
 package com.n1ce.trade.bot.service;
 
+import com.binance.api.client.domain.market.Candlestick;
+import com.binance.api.client.domain.market.CandlestickInterval;
 import com.n1ce.trade.bot.enums.StrategyType;
-import com.n1ce.trade.bot.model.Bot;
-import com.n1ce.trade.bot.model.MarketCondition;
-import com.n1ce.trade.bot.model.Signal;
-import com.n1ce.trade.bot.repositories.StrategyRepository;
+import com.n1ce.trade.bot.model.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,10 +18,14 @@ import java.util.List;
 public class ProfitAndStrategyService {
 
 	private final MarketConditionRepository marketConditionRepository;
+	private final IndicatorService indicatorService;
+	private final BinanceApiService binanceApiService;
 
 	@Autowired
-	public ProfitAndStrategyService(MarketConditionRepository marketConditionRepository,StrategyRepository strategyRepository) {
+	public ProfitAndStrategyService(MarketConditionRepository marketConditionRepository, IndicatorService indicatorService, BinanceApiService binanceApiService) {
 		this.marketConditionRepository = marketConditionRepository;
+		this.indicatorService = indicatorService;
+		this.binanceApiService = binanceApiService;
 	}
 
 	public Signal longTermMarketAnalyzeForStrategy(int periodMinutes, Bot bot) {
@@ -98,6 +101,48 @@ public class ProfitAndStrategyService {
 		return bot.getProfitConfig().getLowProfit();
 	}
 
+	public Signal analyzeMarket(Bot bot) {
+		String symbol = bot.getMarketPair();
+
+		OrderBlock orderBlock = detectOrderBlock(symbol);
+		if (orderBlock == null) {
+			log.info("No significant order block found for {}", symbol);
+			return null;
+		}
+
+		if (!isCorrectionConfirmed(symbol)) {
+			log.info("Correction not confirmed for {}", symbol);
+			return null;
+		}
+
+		FibonacciLevels fibLevels = indicatorService.calculateFibonacci(orderBlock.getHigh(), orderBlock.getLow());
+
+		Signal shortTermMarket = shortTermMarketAnalyzeForStrategy(5, bot);
+		log.info("Correction not confirmed for {}", symbol);
+		return combineSignals(shortTermMarket, orderBlock, fibLevels);
+	}
+
+	private OrderBlock detectOrderBlock(String symbol) {
+		List<Candlestick> candles = binanceApiService.getCandlestickDataWithLimit(symbol, CandlestickInterval.FIFTEEN_MINUTES, 50);
+		return indicatorService.detectOrderBlock(candles);
+	}
+
+	private boolean isCorrectionConfirmed(String symbol) {
+		double rsi = indicatorService.calculateRSI(symbol, 14);
+		MACD macd = indicatorService.calculateMACD(symbol, 12, 26, 9);
+		return rsi < 70 && macd.isBearish();
+	}
+
+	private Signal combineSignals(Signal shortTermSignal, OrderBlock orderBlock, FibonacciLevels fibLevels) {
+		double score = 0;
+		score += (fibLevels.getLevel618() > (orderBlock.getHigh() + orderBlock.getLow()) / 2 ? 1 : -1) * 0.7;
+		score += (shortTermSignal != null ? shortTermSignal.getStrength() * 0.6 : -0.4);
+		StrategyType strategyType = score > 0 ? StrategyType.LONG : (score < 0 ? StrategyType.SHORT : null);
+
+		return strategyType != null ? new Signal(strategyType, score) : null;
+	}
+
+
 	private double calculateLongTermRsi(List<MarketCondition> marketConditions) {
 		marketConditions.sort(Comparator.comparing(MarketCondition::getCreatedAt));
 		return marketConditions.stream()
@@ -162,5 +207,4 @@ public class ProfitAndStrategyService {
 		double lastVolume = marketConditions.get(marketConditions.size() - 1).getVolume();
 		return lastVolume >= averageVolume * threshold;
 	}
-
 }

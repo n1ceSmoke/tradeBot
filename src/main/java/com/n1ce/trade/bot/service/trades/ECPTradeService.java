@@ -53,24 +53,23 @@ public class ECPTradeService extends AbstractCurrentPriceTradeStrategy {
 		Trade trade = findActiveOrCreateNewTrade(bot);
 		checkAndUpdateStrategy(trade, bot);
 		List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
-
-		if (orders.isEmpty() && trade.getTradingVector() != null) {
-			log.info("Checking for signal for first order in trade");
-			orderService.checkForMarketSignalForOrder(bot, trade);
+		if(trade.getTradingVector() == null) {
 			return;
 		}
-		if(!orders.isEmpty()) {
-			if (checkIsOrderFilled(orders, bot, trade)) {
-				return;
-			}
-			if (trade.getStatus().equals(TradeStatus.PENDING)) {
-				executeTrailingStop(bot, trade, orders.get(0));
-				return;
-			}
+		if (orders.isEmpty()) {
+			log.info("Checking for signal for first order in trade");
+			orderService.checkForMarketSignalForMarketOrder(bot, trade);
+			return;
 		}
+		if (checkIsOrderFilled(orders, bot, trade)) {
+			return;
+		}
+		closeTradeIfStuck(bot, trade, orders);
+	}
 
-		checkForProfitPullBack(bot, trade, orders.get(0));
-		closeTradeIfStuck(bot, trade, orders.get(0));
+	@Override
+	protected void executeOrderFilledActions(Bot bot, Trade trade, Order order) {
+		completeTrade(order, trade, bot);
 	}
 
 	private void checkAndUpdateStrategy(Trade trade, Bot bot) {
@@ -102,5 +101,25 @@ public class ECPTradeService extends AbstractCurrentPriceTradeStrategy {
 		trade.setStatus(TradeStatus.PENDING);
 		trade.setCreatedAt(LocalDateTime.now());
 		return trade;
+	}
+
+	@Override
+	protected boolean checkIsOrderFilled(List<Order> orders, Bot bot, Trade trade) {
+		int ordersFilled = 0;
+		for (Order order : orders) {
+			if (binanceApiService.isMarketOrderFilled(order.getId(), order.getSymbol())) {
+				ordersFilled++;
+			}
+		}
+		if(ordersFilled >= 2) {
+			log.info("Order is filled. Executing order close action...");
+			orders.forEach(o -> executeOrderFilledActions(bot, trade, o));
+			return true;
+		}
+		return false;
+	}
+
+	private void closeTradeIfStuck(Bot bot, Trade trade, List<Order> orders) {
+		orders.forEach(o -> closeTradeIfStuck(bot, trade, o));
 	}
 }

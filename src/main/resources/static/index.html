@@ -7,6 +7,11 @@
         <link rel="stylesheet" href="css/style.css">
     </head>
     <body>
+    <nav>
+        <button onclick="location.href='index.html'">Home</button>
+        <button onclick="location.href='stats.html'">Stats</button>
+        <button onclick="location.href='logs.html'">Logs</button>
+    </nav>
         <h1>Bot management</h1>
 
         <h2>Add new Bot</h2>
@@ -29,15 +34,15 @@
                 <th>Deposit</th>
                 <th>Strategy</th>
                 <th>Profit Config</th>
+                <th>(F) Take profit</th>
+                <th>(F) Stop loss</th>
+                <th>(F) Leverage</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
             </thead>
             <tbody id="botsTable"></tbody>
         </table>
-
-        <a href="stats.html">To stats</a>
-
         <script src="js/app.js"></script>
     </body>
 </html>

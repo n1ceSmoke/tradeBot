@@ -1,6 +1,5 @@
 package com.n1ce.trade.bot.dto;
 
-
 public class BotDTO implements AbstractDTO {
 	private Long id;
 	private String name;
@@ -14,6 +13,9 @@ public class BotDTO implements AbstractDTO {
 	private Double takeProfitCheckValue;
 	private Double pullbackThreshold;
 	private Integer maxTradeHours;
+	private double futuresTakeProfitValue;
+	private double futuresStopLoss;
+	private int leverage;
 
 	public Long getId() {
 		return id;
@@ -109,5 +111,29 @@ public class BotDTO implements AbstractDTO {
 
 	public void setMaxTradeHours(Integer maxTradeHours) {
 		this.maxTradeHours = maxTradeHours;
+	}
+
+	public double getFuturesTakeProfitValue() {
+		return futuresTakeProfitValue;
+	}
+
+	public void setFuturesTakeProfitValue(double futuresTakeProfitValue) {
+		this.futuresTakeProfitValue = futuresTakeProfitValue;
+	}
+
+	public double getFuturesStopLoss() {
+		return futuresStopLoss;
+	}
+
+	public void setFuturesStopLoss(double futuresStopLoss) {
+		this.futuresStopLoss = futuresStopLoss;
+	}
+
+	public int getLeverage() {
+		return leverage;
+	}
+
+	public void setLeverage(int leverage) {
+		this.leverage = leverage;
 	}
 }

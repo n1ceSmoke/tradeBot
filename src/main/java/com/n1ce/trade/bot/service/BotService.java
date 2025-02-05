@@ -52,6 +52,15 @@ public class BotService extends AbstractService<Bot> {
 			if(Objects.nonNull(botDTO.getStrategyID())) {
 				bot.setStrategy(strategyService.findById(botDTO.getStrategyID()));
 			}
+			if(Objects.nonNull(botDTO.getLeverage())) {
+				bot.setLeverage(botDTO.getLeverage());
+			}
+			if(Objects.nonNull(botDTO.getFuturesStopLoss())) {
+				bot.setFuturesStopLoss(botDTO.getFuturesStopLoss());
+			}
+			if(Objects.nonNull(botDTO.getFuturesTakeProfitValue())) {
+				bot.setFuturesTakeProfitValue(botDTO.getFuturesTakeProfitValue());
+			}
 			repository.save(bot);
 		}
 	}

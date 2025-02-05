@@ -44,7 +44,7 @@ public abstract class TradeService extends AbstractService<Trade> {
 	public abstract void executeTradeLogic(Bot bot);
 
 	protected void createSecondOrderOnTrade(Bot bot, Trade trade, Order order) {
-		Order newOrder = orderService.createOrder(bot, OrderType.opposite(order.getType()), true, trade);
+		Order newOrder = orderService.createOrder(bot, OrderType.opposite(order.getType()), true, trade, order);
 		if(null != newOrder) {
 			order.setStatus(OrderStatus.FILLED);
 			trade.setStatus(TradeStatus.SECOND_ORDER);
@@ -57,11 +57,12 @@ public abstract class TradeService extends AbstractService<Trade> {
 	}
 
 	protected boolean checkIsOrderFilled(List<Order> orders, Bot bot, Trade trade) {
-		Order order = orders.get(0);
-		if (binanceApiService.isOrderFilled(order.getId(), order.getSymbol())) {
-			log.info("Order is filled. Executing order close action...");
-			executeOrderFilledActions(bot, trade, order);
-			return true;
+		for (Order order : orders) {
+			if (binanceApiService.isOrderFilled(order.getId(), order.getSymbol())) {
+				log.info("Order is filled. Executing order close action...");
+				orders.forEach(o -> executeOrderFilledActions(bot, trade, o));
+				return true;
+			}
 		}
 		return false;
 	}
