@@ -9,6 +9,7 @@ import com.n1ce.trade.bot.service.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -121,5 +122,21 @@ public class ECPTradeService extends AbstractCurrentPriceTradeStrategy {
 
 	private void closeTradeIfStuck(Bot bot, Trade trade, List<Order> orders) {
 		orders.forEach(o -> closeTradeIfStuck(bot, trade, o));
+	}
+
+	@Override
+	protected void closeTradeIfStuck(Bot bot, Trade trade, Order order) {
+		long hoursOpen = Duration.between(trade.getCreatedAt(), LocalDateTime.now()).toHours();
+		double currentPrice = binanceApiService.getCurrentPrice(bot.getMarketPair());
+
+		if (hoursOpen >= bot.getMaxTradeHours()) {
+			log.info("Trade is closing due to timeframe. Closing price: {}, target price: {}", currentPrice, order.getPrice());
+			binanceApiService.cancelFuturesOrder(order.getId(), order.getSymbol());
+			order.setStatus(OrderStatus.CANCELLED);
+			trade.setStatus(TradeStatus.CANCELED);
+			tradeRepository.save(trade);
+			orderService.save(order);
+			orderService.createOrderWithPrice(bot, order.getType(), currentPrice, trade);
+		}
 	}
 }

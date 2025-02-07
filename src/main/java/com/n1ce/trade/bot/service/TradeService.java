@@ -135,6 +135,8 @@ public abstract class TradeService extends AbstractService<Trade> {
 			binanceApiService.cancelOrder(order.getId(), order.getSymbol());
 			order.setStatus(OrderStatus.CANCELLED);
 			orderService.save(order);
+			trade.setStatus(TradeStatus.CANCELED);
+			tradeRepository.save(trade);
 			orderService.createOrderWithPrice(bot, order.getType(), currentPrice, trade);
 		}
 	}

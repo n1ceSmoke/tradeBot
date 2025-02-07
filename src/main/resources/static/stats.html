@@ -17,7 +17,9 @@
         <h2>Choose bot:</h2>
         <select id="botSelect" onchange="loadBotData()"></select>
 
-        <h2>Chart for bot <span id="botName"></span></h2>
+        <button onclick="cancelCycle()">Cancel current bot cycle</button>
+
+        <h2>Chart for bot<span id="botName"></span></h2>
         <canvas id="tradeChart"></canvas>
 
         <h3>Trades history:</h3>
@@ -26,6 +28,25 @@
         <script>
             let botData = {};
             let allBots = [];
+
+            async function cancelCycle() {
+                const botId = document.getElementById('botSelect').value;
+                if (!botId) return;
+
+                try {
+                    const response = await fetch(`/api/bots/close-current-cycle/${botId}`, {
+                        method: "GET",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(botData)
+                    });
+
+                    if (!response.ok) throw new Error("Error canceling current bot iteration!");
+
+                    loadBotData();
+                } catch (error) {
+                    alert(error.message);
+                }
+            }
 
             async function loadBotData() {
                 const botId = document.getElementById('botSelect').value;

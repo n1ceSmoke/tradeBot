@@ -4,9 +4,7 @@ import com.binance.api.client.BinanceApiRestClient;
 import com.binance.api.client.domain.OrderSide;
 import com.binance.api.client.domain.OrderType;
 import com.binance.api.client.domain.TimeInForce;
-import com.binance.api.client.domain.account.NewOrder;
-import com.binance.api.client.domain.account.NewOrderResponse;
-import com.binance.api.client.domain.account.Order;
+import com.binance.api.client.domain.account.*;
 import com.binance.api.client.domain.account.request.CancelOrderRequest;
 import com.binance.api.client.domain.account.request.OrderStatusRequest;
 import com.binance.api.client.domain.general.ExchangeInfo;
@@ -26,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -121,6 +120,20 @@ public class BinanceApiService {
 		}
 	}
 
+	public boolean cancelFuturesOrder(Long orderId, String symbol) {
+		try {
+			LinkedHashMap<String, Object> query = new LinkedHashMap<>();
+			query.put("symbol", symbol);
+			query.put("orderId", String.valueOf(orderId));
+
+			futuresClient.account().cancelOrder(query);
+			return true;
+		} catch (BinanceApiException e) {
+			log.info("Error cancelling the order: " + e.getMessage());
+			return false;
+		}
+	}
+
 	public boolean cancelOrder(Long orderId, String symbol) {
 		try {
 			CancelOrderRequest request = new CancelOrderRequest(symbol, orderId);
@@ -133,6 +146,18 @@ public class BinanceApiService {
 			return false;
 		}
 	}
+
+	public double getAvailableBalance(String pair) {
+		String asset = pair.replaceAll("USDT", "");
+		Account account = binanceApiRestClient.getAccount();
+		for (AssetBalance balance : account.getBalances()) {
+			if (balance.getAsset().equals(asset)) {
+				return new BigDecimal(balance.getFree()).doubleValue();
+			}
+		}
+		return 0.0;
+	}
+
 	public List<Double> getPriceHistory(String symbol, int timePeriodMinutes) {
 		CandlestickInterval interval = determineInterval(timePeriodMinutes);
 		List<Candlestick> candlesticks = binanceApiRestClient.getCandlestickBars(symbol, interval, 300, null, null);

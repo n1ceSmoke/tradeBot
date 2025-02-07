@@ -2,8 +2,14 @@ package com.n1ce.trade.bot.service;
 
 import com.n1ce.trade.bot.dto.AbstractDTO;
 import com.n1ce.trade.bot.dto.BotDTO;
+import com.n1ce.trade.bot.enums.OrderStatus;
+import com.n1ce.trade.bot.enums.TradeStatus;
 import com.n1ce.trade.bot.model.Bot;
+import com.n1ce.trade.bot.model.Order;
+import com.n1ce.trade.bot.model.Trade;
 import com.n1ce.trade.bot.repositories.BotRepository;
+import com.n1ce.trade.bot.repositories.TradeRepository;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,19 +17,50 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
+@Log4j2
 public class BotService extends AbstractService<Bot> {
 	private final ProfitConfigService profitConfigService;
 	private final StrategyService strategyService;
+	private final OrderService orderService;
+	private final TradeRepository tradeRepository;
+	private final BinanceApiService binanceApiService;
 
 	@Autowired
-	public BotService(BotRepository repository, ProfitConfigService profitConfigService, StrategyService strategyService) {
+	public BotService(BinanceApiService binanceApiService, BotRepository repository, ProfitConfigService profitConfigService, StrategyService strategyService, OrderService orderService, TradeRepository tradeRepository) {
 		super(repository);
 		this.profitConfigService = profitConfigService;
 		this.strategyService = strategyService;
+		this.orderService = orderService;
+		this.tradeRepository = tradeRepository;
+		this.binanceApiService = binanceApiService;
 	}
 
 	public List<Bot> getAllActiveBots() {
 		return ((BotRepository) repository).findAllByIsRunning(true);
+	}
+
+	public boolean closeActiveCycleForBot(Long botId) {
+		try{
+			Bot bot = repository.findById(botId).orElse(null);
+			if(bot != null) {
+				List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
+				if(!orders.isEmpty()) {
+					orders.forEach(order -> {
+						binanceApiService.cancelOrder(order.getId(), bot.getMarketPair());
+						order.setStatus(OrderStatus.CANCELLED);
+						orderService.save(order);
+					});
+					Trade trade = orders.get(0).getTrade();
+					trade.setStatus(TradeStatus.CANCELED);
+					tradeRepository.save(trade);
+					return true;
+				}
+			}
+			return true;
+		} catch (RuntimeException e) {
+			log.info("Cannot cancel cycle for bot {} right now due to {}", botId, e.getMessage());
+			return false;
+		}
 	}
 
 	@Override

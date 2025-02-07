@@ -134,7 +134,10 @@ public class OrderService extends AbstractService<Order>{
 		double profit = isSecondOrder ? profitAndStrategyService.shortTermMarketAnalyzeForProfit(3, bot) : 0.01;
 		double currentPrice = firstOrder != null ? firstOrder.getPrice() : binanceApiService.getCurrentPrice(bot.getMarketPair());
 		double orderPrice = calculateAmount(orderType, currentPrice, profit);
-		return createOrder(bot, currentPrice, orderPrice, orderType, trade);
+		double quantity = isSecondOrder ?
+				binanceApiService.adjustOrderQuantity(binanceApiService.getAvailableBalance(bot.getMarketPair()), bot.getMarketPair(), orderPrice) :
+				binanceApiService.adjustOrderQuantity(bot.getDeposit() / currentPrice, bot.getMarketPair(), orderPrice);
+		return createOrderWithQuantity(bot, orderPrice, orderType, trade, quantity);
 	}
 
 	public Order createOrderWithPrice(Bot bot, OrderType orderType, double orderPrice, Trade trade) {
@@ -153,6 +156,31 @@ public class OrderService extends AbstractService<Order>{
 		order.setBot(bot);
 		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
 		order.setQuantity(binanceApiService.adjustOrderQuantity(bot.getDeposit() / currentPrice, bot.getMarketPair(), order.getPrice()));
+		order.setStatus(OrderStatus.PENDING);
+		order.setCreatedAt(LocalDateTime.now());
+		order.setType(orderType);
+		try {
+			NewOrderResponse response = createOrder(bot, order, orderType, orderPrice);
+			order.setId(response.getOrderId());
+			order.setSymbol(response.getSymbol());
+			order.setTrade(trade);
+
+			repository.save(order);
+			return order;
+		} catch (Exception e) {
+			log.info("Error creating order on Binance: " + e.getMessage(), e);
+			if (!e.getMessage().contains("Account has insufficient balance for requested action.")) {
+				throw new RuntimeException("Error creating order on Binance: " + e.getMessage());
+			}
+			return null;
+		}
+	}
+
+	private Order createOrderWithQuantity(Bot bot, double orderPrice, OrderType orderType, Trade trade, double quantity) {
+		Order order = new Order();
+		order.setBot(bot);
+		order.setPrice(new BigDecimal(orderPrice).setScale(2, RoundingMode.DOWN).doubleValue());
+		order.setQuantity(quantity);
 		order.setStatus(OrderStatus.PENDING);
 		order.setCreatedAt(LocalDateTime.now());
 		order.setType(orderType);

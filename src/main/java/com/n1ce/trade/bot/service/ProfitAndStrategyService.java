@@ -40,11 +40,11 @@ public class ProfitAndStrategyService {
 		double longTermRSI = calculateLongTermRsi(marketConditions);
 		double marketTrend = calculateMarketTrend(marketConditions);
 		boolean sufficientVolume = isVolumeSufficient(marketConditions, 1.2);
-		double ema = calculateEMA(marketConditions, 2);
+		double ema = calculateEMA(marketConditions, 7);
 		double lastPrice = marketConditions.get(marketConditions.size() - 1).getPrice();
 
 		double score = 0;
-		score += (longTermRSI > 70 ? -1 : (longTermRSI < 30 ? 1 : 0)) * 0.5;
+		score += (longTermRSI > 60 ? -1 : (longTermRSI < 40 ? 1 : 0)) * 0.5;
 		score += (marketTrend > 0 ? -1 : 1) * 0.25;
 		score += (sufficientVolume ? 0.15 : -0.15);
 		score += (lastPrice > ema ? 0.1 : -0.1);
@@ -63,11 +63,11 @@ public class ProfitAndStrategyService {
 		}
 
 		double shortTermRSI = calculateShortTermRsi(marketConditions);
-		double atr = calculateATR(marketConditions, 2);
+		double atr = calculateATR(marketConditions, 5);
 		boolean sufficientVolume = isVolumeSufficient(marketConditions, 1.2);
 
 		double score = 0;
-		score += (shortTermRSI > 70 ? -1 : (shortTermRSI < 30 ? 1 : 0)) * 0.5;
+		score += (shortTermRSI > 65 ? -1 : (shortTermRSI < 35 ? 1 : 0)) * 0.5;
 		score += (atr > 1.0 ? 0.3 : -0.3);
 		score += (sufficientVolume ? 0.2 : -0.2);
 
@@ -84,11 +84,11 @@ public class ProfitAndStrategyService {
 			return bot.getProfitConfig().getLowProfit();
 		}
 		double shortTermRSI = calculateShortTermRsi(marketConditions);
-		double atr = calculateATR(marketConditions, 14);
+		double atr = calculateATR(marketConditions, 5);
 		boolean sufficientVolume = isVolumeSufficient(marketConditions, 1.2);
 
 		double score = 0;
-		score += (shortTermRSI <= 30 ? 1 : (shortTermRSI >= 70 ? -1 : 0)) * 0.5;
+		score += (shortTermRSI <= 35 ? 1 : (shortTermRSI >= 65 ? -1 : 0)) * 0.5;
 		score += (atr > 1.0 ? 0.3 : -0.3);
 		score += (sufficientVolume ? 0.2 : -0.2);
 
@@ -103,44 +103,53 @@ public class ProfitAndStrategyService {
 
 	public Signal analyzeMarket(Bot bot) {
 		String symbol = bot.getMarketPair();
-
 		OrderBlock orderBlock = detectOrderBlock(symbol);
 		if (orderBlock == null) {
 			log.info("No significant order block found for {}", symbol);
 			return null;
 		}
-
 		if (!isCorrectionConfirmed(symbol)) {
 			log.info("Correction not confirmed for {}", symbol);
 			return null;
 		}
 
 		FibonacciLevels fibLevels = indicatorService.calculateFibonacci(orderBlock.getHigh(), orderBlock.getLow());
-
 		Signal shortTermMarket = shortTermMarketAnalyzeForStrategy(5, bot);
-		log.info("Correction not confirmed for {}", symbol);
+
 		return combineSignals(shortTermMarket, orderBlock, fibLevels);
 	}
 
 	private OrderBlock detectOrderBlock(String symbol) {
-		List<Candlestick> candles = binanceApiService.getCandlestickDataWithLimit(symbol, CandlestickInterval.FIFTEEN_MINUTES, 50);
+		List<Candlestick> candles = binanceApiService.getCandlestickDataWithLimit(symbol, CandlestickInterval.FIVE_MINUTES, 200);
 		return indicatorService.detectOrderBlock(candles);
 	}
 
 	private boolean isCorrectionConfirmed(String symbol) {
 		double rsi = indicatorService.calculateRSI(symbol, 14);
 		MACD macd = indicatorService.calculateMACD(symbol, 12, 26, 9);
-		return rsi < 70 && macd.isBearish();
+		return (rsi < 60 || macd.isBearish()) && priceActionConfirmsCorrection(symbol);
+	}
+
+	private boolean priceActionConfirmsCorrection(String symbol) {
+		List<Candlestick> candles = binanceApiService.getCandlestickDataWithLimit(symbol, CandlestickInterval.FIVE_MINUTES, 20);
+		return indicatorService.detectBearishEngulfing(candles) || indicatorService.detectPinBar(candles);
 	}
 
 	private Signal combineSignals(Signal shortTermSignal, OrderBlock orderBlock, FibonacciLevels fibLevels) {
 		double score = 0;
-		score += (fibLevels.getLevel618() > (orderBlock.getHigh() + orderBlock.getLow()) / 2 ? 1 : -1) * 0.7;
-		score += (shortTermSignal != null ? shortTermSignal.getStrength() * 0.6 : -0.4);
-		StrategyType strategyType = score > 0 ? StrategyType.LONG : (score < 0 ? StrategyType.SHORT : null);
+
+		double blockStrength = (orderBlock.getHigh() - orderBlock.getLow()) / orderBlock.getHigh();
+		double fibWeight = blockStrength > 0.02 ? 0.8 : 0.5;
+		double rsiWeight = (shortTermSignal != null && shortTermSignal.getStrength() > 0.5) ? 0.6 : 0.3;
+
+		score += (fibLevels.getLevel618() > (orderBlock.getHigh() + orderBlock.getLow()) / 2 ? 1 : -1) * fibWeight;
+		score += (shortTermSignal != null ? shortTermSignal.getStrength() * rsiWeight : -0.2);
+
+		StrategyType strategyType = score > 0.5 ? StrategyType.LONG : (score < -0.5 ? StrategyType.SHORT : null);
 
 		return strategyType != null ? new Signal(strategyType, score) : null;
 	}
+
 
 
 	private double calculateLongTermRsi(List<MarketCondition> marketConditions) {
