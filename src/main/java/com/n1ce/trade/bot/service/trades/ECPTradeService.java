@@ -115,13 +115,10 @@ public class ECPTradeService extends AbstractCurrentPriceTradeStrategy {
 		if(ordersFilled >= 2) {
 			log.info("Order is filled. Executing order close action...");
 			orders.forEach(o -> executeOrderFilledActions(bot, trade, o));
+			cancelAuxiliaryOrders(orders, bot);
 			return true;
 		}
 		return false;
-	}
-
-	private void closeTradeIfStuck(Bot bot, Trade trade, List<Order> orders) {
-		orders.forEach(o -> closeTradeIfStuck(bot, trade, o));
 	}
 
 	@Override
@@ -138,5 +135,13 @@ public class ECPTradeService extends AbstractCurrentPriceTradeStrategy {
 			orderService.save(order);
 			orderService.createOrderWithPrice(bot, order.getType(), currentPrice, trade);
 		}
+	}
+
+	private void cancelAuxiliaryOrders(List<Order> orders, Bot bot) {
+		orders.forEach(order -> binanceApiService.cancelFuturesOrder(order.getId(), bot.getMarketPair()));
+	}
+
+	private void closeTradeIfStuck(Bot bot, Trade trade, List<Order> orders) {
+		orders.forEach(o -> closeTradeIfStuck(bot, trade, o));
 	}
 }
