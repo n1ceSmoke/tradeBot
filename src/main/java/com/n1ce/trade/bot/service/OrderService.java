@@ -27,20 +27,17 @@ import java.util.stream.Collectors;
 public class OrderService extends AbstractService<Order>{
 
 	private final BinanceApiService binanceApiService;
-	private final TradeRepository tradeRepository;
 	private final ProfitAndStrategyService profitAndStrategyService;
 	private final OrderRepository repository;
 	private final OrderMapper orderMapper;
 
 	public OrderService(BinanceApiService binanceApiService,
-						TradeRepository tradeRepository,
 						ProfitAndStrategyService profitAndStrategyService,
 						OrderMapper orderMapper,
 						OrderRepository repository) {
 		super(repository);
 		this.repository = repository;
 		this.binanceApiService = binanceApiService;
-		this.tradeRepository = tradeRepository;
 		this.profitAndStrategyService = profitAndStrategyService;
 		this.orderMapper = orderMapper;
 	}
@@ -149,6 +146,10 @@ public class OrderService extends AbstractService<Order>{
 		return binanceApiService.createOrder(
 				bot.getMarketPair(), defineSide(orderType), String.valueOf(order.getQuantity()), scaleToTwo(orderPrice)
 		);
+	}
+
+	public List<Order> getOrdersByTrade(Trade trade) {
+		return repository.findByTradeId(trade.getId());
 	}
 
 	private Order createOrder(Bot bot, double orderPrice, double currentPrice, OrderType orderType, Trade trade) {

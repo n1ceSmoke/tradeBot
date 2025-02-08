@@ -26,7 +26,6 @@ public class IndicatorUpdateService {
 	private final MarketConditionRepository marketConditionRepository;
 	private final BinanceApiService binanceApiService;
 
-	@Transactional
 	public void updateIndicators() {
 		List<Bot> bots = botRepository.findAll();
 
@@ -39,7 +38,6 @@ public class IndicatorUpdateService {
 				updateRSIIndicator(bot);
 				updateMarketCondition(bot);
 			} catch (Exception e) {
-				// Логирование ошибки для конкретного бота
 				log.error("Error updating indicators for bot: {}. Reason: {}", bot.getId(), e.getMessage());
 			}
 		}

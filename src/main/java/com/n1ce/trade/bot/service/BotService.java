@@ -41,7 +41,7 @@ public class BotService extends AbstractService<Bot> {
 
 	public boolean closeActiveCycleForBot(Long botId) {
 		try{
-			Bot bot = repository.findById(botId).orElse(null);
+			Bot bot = ((BotRepository) repository).findById(botId).orElse(null);
 			if(bot != null) {
 				List<Order> orders = orderService.getByBotAndStatus(bot, OrderStatus.PENDING);
 				if(!orders.isEmpty()) {

@@ -141,6 +141,13 @@ document.getElementById("addBotForm").addEventListener("submit", async (e) => {
         name: document.getElementById("botName").value,
         marketPair: document.getElementById("marketPair").value,
         deposit: parseFloat(document.getElementById("deposit").value),
+        deadlineMinutes: parseFloat(document.getElementById("deadlineMinutes").value),
+        takeProfitCheckValue: parseFloat(document.getElementById("takeProfitCheck").value),
+        pullbackThreshold: parseFloat(document.getElementById("pullbackThreshold").value),
+        maxTradeHours: parseFloat(document.getElementById("maxTradeHours").value),
+        futuresTakeProfitValue: parseFloat(document.getElementById("fTakeProfit").value),
+        futuresStopLoss: parseFloat(document.getElementById("fStopLoss").value),
+        leverage: parseFloat(document.getElementById("fLeverage").value),
         strategyID: parseInt(document.getElementById("strategySelect").value),
         profitConfigID: parseInt(document.getElementById("profitConfigSelect").value),
         running: true

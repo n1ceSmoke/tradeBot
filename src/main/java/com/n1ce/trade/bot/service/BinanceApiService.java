@@ -105,6 +105,7 @@ public class BinanceApiService {
 			LinkedHashMap<String, Object> query = new LinkedHashMap<>();
 			query.put("symbol", symbol);
 			query.put("orderId", String.valueOf(orderId));
+			query.put("timestamp", getFuturesServerTime());
 
 			String response = futuresClient.account().queryOrder(query);
 			JsonNode order = objectMapper.readTree(response);
@@ -125,6 +126,7 @@ public class BinanceApiService {
 			LinkedHashMap<String, Object> query = new LinkedHashMap<>();
 			query.put("symbol", symbol);
 			query.put("orderId", String.valueOf(orderId));
+			query.put("timestamp", getFuturesServerTime());
 
 			futuresClient.account().cancelOrder(query);
 			return true;
@@ -279,6 +281,7 @@ public class BinanceApiService {
 			order.put("side", side.toString());
 			order.put("type", "MARKET");
 			order.put("quantity", String.valueOf(quantity));
+			order.put("timestamp", getFuturesServerTime());
 
 			String response = futuresClient.account().newOrder(order);
 			log.info("Futures order created: {}", response);
@@ -295,6 +298,8 @@ public class BinanceApiService {
 			LinkedHashMap<String, Object> leverageParams = new LinkedHashMap<>();
 			leverageParams.put("symbol", symbol);
 			leverageParams.put("leverage", leverage);
+			leverageParams.put("timestamp", getFuturesServerTime());
+
 			futuresClient.account().changeInitialLeverage(leverageParams);
 			log.info("Leverage set to {}x for {}", leverage, symbol);
 		} catch (Exception e) {
@@ -313,6 +318,7 @@ public class BinanceApiService {
 			orderParams.put("quantity", String.valueOf(quantity));
 			orderParams.put("stopPrice", String.valueOf(stopLossPrice));
 			orderParams.put("reduceOnly", true);
+			orderParams.put("timestamp", getFuturesServerTime());
 
 			String response = futuresClient.account().newOrder(orderParams);
 			log.info("Stop Loss order created: {}", response);
@@ -336,6 +342,7 @@ public class BinanceApiService {
 			orderParams.put("quantity", String.valueOf(quantity));
 			orderParams.put("stopPrice", String.valueOf(takeProfitPrice));
 			orderParams.put("reduceOnly", true);
+			orderParams.put("timestamp", getFuturesServerTime());
 
 			String response = futuresClient.account().newOrder(orderParams);
 			log.info("Take Profit order created: {}", response);
@@ -361,6 +368,10 @@ public class BinanceApiService {
 
 	public long getServerTime() {
 		return binanceApiRestClient.getServerTime();
+	}
+
+	public String getFuturesServerTime() {
+		return futuresClient.market().time();
 	}
 }
 

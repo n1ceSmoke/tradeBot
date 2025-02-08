@@ -19,6 +19,13 @@
             <input type="text" id="botName" placeholder="Bot name" required>
             <input type="text" id="marketPair" placeholder="Market pair (BTC/USDT)" required>
             <input type="number" id="deposit" placeholder="Deposit" required>
+            <input type="number" id="deadlineMinutes" placeholder="Deadline minutes for trailing stop" required>
+            <input type="number" id="takeProfitCheck" placeholder="Check value for reversing price(0.85 - standard)" required>
+            <input type="number" id="pullbackThreshold" placeholder="Check value for reversing price to close deal(3 - standard)" required>
+            <input type="number" id="maxTradeHours" placeholder="Max Trade Hours - Closing older trade with current price" required>
+            <input type="number" id="fTakeProfit" placeholder="Take profit for futures positions(ECP)" required>
+            <input type="number" id="fStopLoss" placeholder="Stop loss for futures positions(ECP)" required>
+            <input type="number" id="fLeverage" placeholder="Leverage for futures positions(ECP)" required>
             <select id="strategySelect"></select>
             <select id="profitConfigSelect"></select>
             <button type="submit">Add bot</button>

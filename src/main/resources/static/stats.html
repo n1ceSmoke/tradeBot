@@ -36,8 +36,7 @@
                 try {
                     const response = await fetch(`/api/bots/close-current-cycle/${botId}`, {
                         method: "GET",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(botData)
+                        headers: { "Content-Type": "application/json" }
                     });
 
                     if (!response.ok) throw new Error("Error canceling current bot iteration!");
